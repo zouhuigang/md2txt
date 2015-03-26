@@ -1,6 +1,7 @@
 package md2txt
 
 import (
+	"bytes"
 	"regexp"
 	"unicode/utf8"
 
@@ -11,6 +12,10 @@ const (
 	BASIC = iota // Basic Markdown based on http://daringfireball.net/projects/markdown/syntax
 	GFM          // Github Flavored Markdown
 )
+const (
+	tab    = "\t"
+	sapce4 = "    s"
+)
 
 type Element interface {
 	Type() kind.Kind
@@ -19,7 +24,7 @@ type Element interface {
 
 // Head represents element beginning with '#'
 type Head struct {
-	level   int
+	level   int // head type h1,h2,...h6
 	content []byte
 }
 
@@ -42,8 +47,25 @@ type BlockQuote struct {
 
 // List represents element beginning with '*'|'+'|'-'|digit
 type List struct {
-	Level   int // recursive level
-	Content string
+	level int // recursive level
+	items []*Item
+}
+
+func (l *List) Type() kind.Kind { return kind.List }
+
+// TODO:handle sub elements
+func (l *List) Content() []byte {
+	var output [][]byte
+	for _, v := range l.items {
+		output = append(output, v.content)
+	}
+	return bytes.Join(output, []byte("\n"))
+}
+
+// list item.
+type Item struct {
+	content []byte
+	subEles []Element
 }
 
 // Code represents element beginning with one tab or at least a 4 spaces.
@@ -138,13 +160,31 @@ func (p *parser) next() rune {
 	return r
 }
 
-// peek peek a rune from the src,
-func (p *parser) peek() rune {
-	if p.cur >= len(p.src) {
-		return eof
+// peek peek nth rune from the p.cur,
+// default is 1.
+func (p *parser) peek(i ...int) rune {
+	if len(i) == 0 {
+		if p.cur >= len(p.src) {
+			return eof
+		}
+		r, _ := utf8.DecodeRune(p.src[p.cur:])
+		return r
+	} else {
+		if len(i) > 1 {
+			panic("no more than one arguments allowed")
+		}
+		nth := i[0]
+		pos := p.cur
+		var (
+			r rune
+			w int
+		)
+		for k := 0; k < nth; k++ {
+			r, w = utf8.DecodeRune(p.src[pos:])
+			pos += w
+		}
+		return r
 	}
-	r, _ := utf8.DecodeRune(p.src[p.cur:])
-	return r
 }
 
 // backup backup a rune to the src.
@@ -156,9 +196,6 @@ func (p *parser) backup() {
 // emit send element
 func (p *parser) emit(e Element) {
 	p.elementChan <- e
-	if e.Type() == kind.EOF {
-		close(p.elementChan)
-	}
 	p.start = p.cur
 }
 
@@ -177,6 +214,12 @@ func parseBegin(p *parser) stateFn {
 	switch r := p.peek(); {
 	case r == '#':
 		return parseHead
+	case r == '-' || r == '*' || r == '+':
+		r1 := p.peek(2)
+		if r1 == ' ' {
+			return parseList
+		}
+		fallthrough
 	default:
 		return parseParagraph
 	case r == eof:
@@ -211,7 +254,7 @@ func parseParagraph(p *parser) stateFn {
 	// Head type has tailling ----- (H2) or ====== (H1)
 	if r == '-' || r == '=' {
 		p.consume(r)
-		r1 := p.peek()
+		r1 := p.peek(2)
 		if r1 == '\n' {
 			p.next()
 		}
@@ -237,8 +280,39 @@ func parseParagraph(p *parser) stateFn {
 
 }
 
+// parseList parse lists with embedded sub elements.
+func parseList(p *parser) stateFn {
+	marker := p.peek()
+	list := &List{}
+	start := p.start
+	for {
+		for r := p.next(); r != '\n' && r != eof; {
+			r = p.next()
+		}
+		content := p.src[start:p.cur]
+		var escape = ""
+		if marker == '+' || marker == '*' {
+			escape = "\\"
+		}
+		content = regexp.MustCompile("^"+escape+string(marker)+" ").ReplaceAll(content, []byte{})
+		content = regexp.MustCompile("\n$").ReplaceAll(content, []byte{})
+		item := &Item{content: content}
+		list.items = append(list.items, item)
+		// if forsee Sprinf("%s ",marker),
+		// parse another list.
+		r := p.peek(1)
+		r1 := p.peek(2)
+		if r != marker && r1 != ' ' {
+			p.emit(list)
+			return parseBegin
+		}
+		start = p.cur
+	}
+}
+
 func (p *parser) run() {
 	for p.state = parseBegin; p.state != nil; {
 		p.state = p.state(p)
 	}
+	close(p.elementChan)
 }

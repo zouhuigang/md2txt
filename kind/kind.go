@@ -5,5 +5,6 @@ type Kind int
 const (
 	Head Kind = iota
 	Paragraph
+	List
 	EOF
 )

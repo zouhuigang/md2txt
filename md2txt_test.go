@@ -42,3 +42,39 @@ func TestParagraph(t *testing.T) {
 	}
 
 }
+
+func TestList(t *testing.T) {
+	p := newParser([]byte(`* item1
+* item2
+* item3`))
+	e := p.element()
+	if e == nil {
+		t.Fail()
+	}
+	if string(e.Content()) != `item1
+item2
+item3` {
+		t.Logf("%s", e.Content())
+		t.Fail()
+	}
+	if e.Type() != kind.List {
+		t.Fail()
+	}
+	p1 := newParser([]byte(`+ item1
++ item2
++ item3`))
+	e1 := p1.element()
+	if e1 == nil {
+		t.Fail()
+	}
+	if string(e1.Content()) != `item1
+item2
+item3` {
+		t.Logf("%s", e1.Content())
+		t.Fail()
+	}
+	if e1.Type() != kind.List {
+		t.Fail()
+	}
+
+}
