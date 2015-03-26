@@ -23,17 +23,16 @@ type Head struct {
 	content []byte
 }
 
-func (h *Head) Content() []byte {
-	return h.content
-}
-func (h *Head) Type() kind.Kind {
-	return kind.Head
-}
+func (h *Head) Content() []byte { return h.content }
+func (h *Head) Type() kind.Kind { return kind.Head }
 
 // Paragraph represents paragraph.
 type Paragraph struct {
-	Content string
+	content []byte
 }
+
+func (p *Paragraph) Content() []byte { return p.content }
+func (p *Paragraph) Type() kind.Kind { return kind.Paragraph }
 
 // BlockQuote represents element beginning with '>'
 type BlockQuote struct {
@@ -178,9 +177,9 @@ func parseBegin(p *parser) stateFn {
 	switch r := p.peek(); {
 	case r == '#':
 		return parseHead
-	case r == eof:
-		return nil
 	default:
+		return parseParagraph
+	case r == eof:
 		return nil
 	}
 
@@ -192,11 +191,50 @@ func parseHead(p *parser) stateFn {
 		r = p.next()
 	}
 	content := p.src[p.start:p.cur]
-	content = regexp.MustCompile("#*\n").ReplaceAll(content, []byte{})
+	// deliminate suffix and prefix '#'
+	content = regexp.MustCompile("#*\n$").ReplaceAll(content, []byte{})
 	content = regexp.MustCompile("^#+").ReplaceAll(content, []byte{})
 	head := &Head{level, content}
 	p.emit(head)
 	return parseBegin
+}
+
+// parse text with no prefix.
+// NOTICE:if followed by '---'|'====',
+// emitted as Head Type else Paragraph Type.
+func parseParagraph(p *parser) stateFn {
+	for r := p.next(); r != '\n' && r != eof; {
+		r = p.next()
+	}
+	content := p.src[p.start:p.cur]
+	r := p.peek()
+	// Head type has tailling ----- (H2) or ====== (H1)
+	if r == '-' || r == '=' {
+		p.consume(r)
+		r1 := p.peek()
+		if r1 == '\n' {
+			p.next()
+		}
+		content := p.src[p.start:p.cur]
+		content = regexp.MustCompile("\n?"+string(r)+"*\n?").ReplaceAll(content, []byte{})
+
+		var level int
+		if r == '-' {
+			level = 2
+		}
+		if r == '=' {
+			level = 1
+		}
+
+		head := &Head{level, content}
+		p.emit(head)
+		return parseBegin
+	}
+	content = regexp.MustCompile("\n{0,2}$").ReplaceAll(content, []byte{})
+	paragraph := &Paragraph{content}
+	p.emit(paragraph)
+	return parseBegin
+
 }
 
 func (p *parser) run() {
