@@ -78,3 +78,14 @@ item3` {
 	}
 
 }
+
+func TestCodeBlock(t *testing.T) {
+	p := newParser([]byte(`	codeblock1
+	codeblock2`))
+	e := p.element()
+	if string(e.Content()) != `codeblock1
+codeblock2` {
+		t.Logf("'%s'", e.Content())
+		t.Fail()
+	}
+}

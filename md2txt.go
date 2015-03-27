@@ -68,14 +68,14 @@ type Item struct {
 	subEles []Element
 }
 
-// Code represents element beginning with one tab or at least a 4 spaces.
-type Code struct {
+// CodeBlock represents element beginning with one tab or at least a 4 spaces.
+type CodeBlock struct {
 	level   int // recursive level
 	content []byte
 }
 
-func (c Code) Content() []byte { return c.content }
-func (c Code) Type() kind.Kind { return kind.Code }
+func (c CodeBlock) Content() []byte { return c.content }
+func (c CodeBlock) Type() kind.Kind { return kind.CodeBlock }
 
 // Rule represents horizontal rules
 type Rule struct {
@@ -174,6 +174,21 @@ func (p *parser) forsee(rs ...rune) bool {
 		}
 	}
 	return true
+}
+
+// runes return the runes consisting of the string.
+func runes(s string) []rune {
+	var runes []rune
+	for {
+		r, w := utf8.DecodeRuneInString(s)
+		if w != 0 {
+			runes = append(runes, r)
+			s = s[w:]
+		} else {
+			break
+		}
+	}
+	return runes
 }
 
 // peek peek nth rune from the p.cur,
@@ -299,6 +314,7 @@ func parseList(p *parser) stateFn {
 		list.items = append(list.items, item)
 		// if forsee Sprinf("%s ",marker),
 		// parse another list.
+		// TODO: use forsee to detect next item.
 		r := p.peek(1)
 		r1 := p.peek(2)
 		if r != marker && r1 != ' ' {
@@ -310,8 +326,30 @@ func parseList(p *parser) stateFn {
 }
 
 // parseCode parses code beginning with 4 sapces or 1 tab.
-func parseCode(p *parser) stateFn {
-	return nil
+func parseCodeBlock(p *parser) stateFn {
+	codeBlock := &CodeBlock{}
+	start := p.start
+	var marker string
+	r := p.peek()
+	if r == ' ' {
+		marker = "    " // 4 spaces
+	}
+	marker = "\t"
+	for {
+		for r := p.next(); r != '\n' && r != eof; {
+			r = p.next()
+		}
+		content := p.src[start:p.cur]
+		content = regexp.MustCompile("^"+marker).ReplaceAll(content, []byte{})
+		codeBlock.content = append(codeBlock.content, content...)
+		if !p.forsee(runes(marker)...) {
+			break
+		}
+		start = p.cur
+	}
+	p.emit(codeBlock)
+	return parseBegin
+
 }
 
 func parseBegin(p *parser) stateFn {
@@ -325,7 +363,7 @@ func parseBegin(p *parser) stateFn {
 		}
 		fallthrough
 	case r == '\t' || (r == ' ' && p.forsee(' ', ' ', ' ')):
-		return parseCode
+		return parseCodeBlock
 	default:
 		return parseParagraph
 	case r == eof:

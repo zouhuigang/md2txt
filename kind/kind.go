@@ -6,6 +6,7 @@ const (
 	Head Kind = iota
 	Paragraph
 	List
+	CodeBlock
 	Code
 	EOF
 )
