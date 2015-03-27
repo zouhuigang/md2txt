@@ -28,16 +28,16 @@ type Head struct {
 	content []byte
 }
 
-func (h *Head) Content() []byte { return h.content }
-func (h *Head) Type() kind.Kind { return kind.Head }
+func (h Head) Content() []byte { return h.content }
+func (h Head) Type() kind.Kind { return kind.Head }
 
 // Paragraph represents paragraph.
 type Paragraph struct {
 	content []byte
 }
 
-func (p *Paragraph) Content() []byte { return p.content }
-func (p *Paragraph) Type() kind.Kind { return kind.Paragraph }
+func (p Paragraph) Content() []byte { return p.content }
+func (p Paragraph) Type() kind.Kind { return kind.Paragraph }
 
 // BlockQuote represents element beginning with '>'
 type BlockQuote struct {
@@ -51,10 +51,10 @@ type List struct {
 	items []*Item
 }
 
-func (l *List) Type() kind.Kind { return kind.List }
+func (l List) Type() kind.Kind { return kind.List }
 
 // TODO:handle sub elements
-func (l *List) Content() []byte {
+func (l List) Content() []byte {
 	var output [][]byte
 	for _, v := range l.items {
 		output = append(output, v.content)
@@ -70,9 +70,12 @@ type Item struct {
 
 // Code represents element beginning with one tab or at least a 4 spaces.
 type Code struct {
-	Level   int // recursive level
-	Content string
+	level   int // recursive level
+	content []byte
 }
+
+func (c Code) Content() []byte { return c.content }
+func (c Code) Type() kind.Kind { return kind.Code }
 
 // Rule represents horizontal rules
 type Rule struct {
@@ -160,6 +163,19 @@ func (p *parser) next() rune {
 	return r
 }
 
+// forsee run of runes.
+func (p *parser) forsee(rs ...rune) bool {
+	pos := p.cur
+	for k := 0; k < len(rs); k++ {
+		r, w := utf8.DecodeRune(p.src[pos:])
+		pos += w
+		if r != rs[k] {
+			return false
+		}
+	}
+	return true
+}
+
 // peek peek nth rune from the p.cur,
 // default is 1.
 func (p *parser) peek(i ...int) rune {
@@ -210,24 +226,7 @@ func numberOfLines(input []byte) int {
 	return count
 }
 
-func parseBegin(p *parser) stateFn {
-	switch r := p.peek(); {
-	case r == '#':
-		return parseHead
-	case r == '-' || r == '*' || r == '+':
-		r1 := p.peek(2)
-		if r1 == ' ' {
-			return parseList
-		}
-		fallthrough
-	default:
-		return parseParagraph
-	case r == eof:
-		return nil
-	}
-
-}
-
+// parseHead parse head beginning with '#'
 func parseHead(p *parser) stateFn {
 	level := p.consume('#')
 	for r := p.next(); r != '\n' && r != eof; {
@@ -308,6 +307,31 @@ func parseList(p *parser) stateFn {
 		}
 		start = p.cur
 	}
+}
+
+// parseCode parses code beginning with 4 sapces or 1 tab.
+func parseCode(p *parser) stateFn {
+	return nil
+}
+
+func parseBegin(p *parser) stateFn {
+	switch r := p.peek(); {
+	case r == '#':
+		return parseHead
+	case r == '-' || r == '*' || r == '+':
+		r1 := p.peek(2)
+		if r1 == ' ' {
+			return parseList
+		}
+		fallthrough
+	case r == '\t' || (r == ' ' && p.forsee(' ', ' ', ' ')):
+		return parseCode
+	default:
+		return parseParagraph
+	case r == eof:
+		return nil
+	}
+
 }
 
 func (p *parser) run() {

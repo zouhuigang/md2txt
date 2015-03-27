@@ -6,5 +6,6 @@ const (
 	Head Kind = iota
 	Paragraph
 	List
+	Code
 	EOF
 )
