@@ -6,9 +6,10 @@ import (
 	"github.com/ggaaooppeenngg/md2txt/kind"
 )
 
-type Element interface {
-	Type() kind.Kind
-	Content() []byte
+type Block interface {
+	Spans() []Inline // span elements including pure text.
+	Type() kind.Kind // kind of block.
+	Content() []byte // pure text including inline.
 }
 
 // Head represents element beginning with '#'
@@ -17,6 +18,8 @@ type Head struct {
 	content []byte
 }
 
+// Head has no spans.
+func (h Head) Spans() []Inline { return []Inline{} }
 func (h Head) Content() []byte { return h.content }
 func (h Head) Type() kind.Kind { return kind.Head }
 
@@ -25,6 +28,7 @@ type Paragraph struct {
 	content []byte
 }
 
+func (p Paragraph) Spans() []Inline { return []Inline{} }
 func (p Paragraph) Content() []byte { return p.content }
 func (p Paragraph) Type() kind.Kind { return kind.Paragraph }
 
@@ -40,6 +44,8 @@ type List struct {
 	items []*Item
 }
 
+// list has no inline but subitems have inline elements.
+func (l List) Spans() []Inline { return []Inline{} }
 func (l List) Type() kind.Kind { return kind.List }
 
 // TODO:handle sub elements
@@ -53,8 +59,8 @@ func (l List) Content() []byte {
 
 // list item.
 type Item struct {
-	content []byte
-	subEles []Element
+	content   []byte
+	subBlocks []Block
 }
 
 // CodeBlock represents element beginning with one tab or at least a 4 spaces.
@@ -63,6 +69,7 @@ type CodeBlock struct {
 	content []byte
 }
 
+func (c CodeBlock) Spans() []Inline { return []Inline{} }
 func (c CodeBlock) Content() []byte { return c.content }
 func (c CodeBlock) Type() kind.Kind { return kind.CodeBlock }
 
@@ -70,8 +77,15 @@ func (c CodeBlock) Type() kind.Kind { return kind.CodeBlock }
 type Rule struct {
 }
 
+func (r Rule) Spans() []Inline { return []Inline{} }
 func (r Rule) Content() []byte { return []byte{} }
 func (r Rule) Type() kind.Kind { return kind.Rule }
+
+// inline span elements.
+type Inline interface {
+	StartPos() int
+	Content() string
+}
 
 type Link struct {
 	Text  string
@@ -82,6 +96,7 @@ type Link struct {
 type Emphasis struct {
 	Content string
 }
+
 type Image struct {
 	Text  string
 	Title string

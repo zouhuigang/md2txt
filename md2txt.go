@@ -30,24 +30,25 @@ type parser struct {
 	length int // length of scanned content
 
 	state       stateFn
-	elementChan chan Element
+	elementChan chan Block
 }
 
 func newParser(src []byte) *parser {
 	p := &parser{
 		src:         src,
-		elementChan: make(chan Element),
+		elementChan: make(chan Block),
 	}
 	go p.run()
 	return p
 }
+
 func Parse() {
 
 }
 
 const eof = -1
 
-func (p *parser) element() Element {
+func (p *parser) element() Block {
 	e := <-p.elementChan
 	return e
 }
@@ -137,8 +138,8 @@ func (p *parser) backup() {
 }
 
 // emit send element
-func (p *parser) emit(e Element) {
-	p.elementChan <- e
+func (p *parser) emit(b Block) {
+	p.elementChan <- b
 	p.start = p.cur
 }
 
