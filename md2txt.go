@@ -264,6 +264,37 @@ func parseCodeBlock(p *parser) stateFn {
 
 }
 
+// parseRule parses rule begining,
+// with more than three '*'|'+'|'-'
+// (can be joined by one white sapce).
+func parseRule(p *parser) stateFn {
+	r := p.next()
+	r1 := p.peek(2)
+	if r1 == ' ' {
+		for {
+			r1 = p.next()
+			if r1 != ' ' {
+				break
+			}
+			r1 = p.next()
+			if r1 != r {
+				break
+			}
+		}
+		p.emit(&Rule{})
+		return parseBegin
+	} else {
+		p.consume(r)
+		p.emit(&Rule{})
+		return parseBegin
+	}
+
+}
+
+// parseError is error handler when account for errors.
+func parseError(p *parser) stateFn {
+	return nil
+}
 func parseBegin(p *parser) stateFn {
 	switch r := p.peek(); {
 	case r == '#':
@@ -271,9 +302,19 @@ func parseBegin(p *parser) stateFn {
 	case r == '-' || r == '*' || r == '+':
 		r1 := p.peek(2)
 		if r1 == ' ' {
+			// rule marker can be seperated by one white sapce.
+			if r == '*' || r == '-' {
+				r2 := p.peek(3)
+				if r2 == r && p.forsee(r, ' ', r, ' ', r) {
+					// fall to parseRule
+					return parseRule
+				}
+			}
 			return parseList
 		}
 		fallthrough
+	case r == '_' || r == '*' || r == '-':
+		return parseRule
 	case r == '\t' || (r == ' ' && p.forsee(' ', ' ', ' ')):
 		return parseCodeBlock
 	default:

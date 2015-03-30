@@ -89,3 +89,16 @@ codeblock2` {
 		t.Fail()
 	}
 }
+
+func TestHorizontalRules(t *testing.T) {
+	p := newParser([]byte(`***`))
+	e := p.element()
+	if e.Type() != kind.Rule {
+		t.Fail()
+	}
+	p1 := newParser([]byte(`* * *`))
+	e1 := p1.element()
+	if e1.Type() != kind.Rule {
+		t.Fail()
+	}
+}

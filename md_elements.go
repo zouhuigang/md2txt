@@ -70,6 +70,9 @@ func (c CodeBlock) Type() kind.Kind { return kind.CodeBlock }
 type Rule struct {
 }
 
+func (r Rule) Content() []byte { return []byte{} }
+func (r Rule) Type() kind.Kind { return kind.Rule }
+
 type Link struct {
 	Text  string
 	Title string

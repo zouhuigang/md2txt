@@ -8,5 +8,6 @@ const (
 	List
 	CodeBlock
 	Code
+	Rule
 	EOF
 )
