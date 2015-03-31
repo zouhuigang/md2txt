@@ -1,8 +1,11 @@
 package md2txt
 
 import (
+	"math"
 	"regexp"
 	"unicode/utf8"
+
+	"github.com/ggaaooppeenngg/md2txt/kind"
 )
 
 const (
@@ -38,35 +41,62 @@ func newParser(src []byte) *parser {
 		src:         src,
 		elementChan: make(chan Element),
 	}
-	go p.run()
+	go p.run(kind.Block)
 	return p
 }
-
+func newSpanParser(src []byte) *parser {
+	p := &parser{
+		src:         src,
+		elementChan: make(chan Element),
+	}
+	go p.run(kind.Inline)
+	return p
+}
 func Parse() {
 
 }
 
 const eof = -1
 
+//----------type dependent----------
+
+// get element,type dependent
 func (p *parser) element() Element {
 	e := <-p.elementChan
 	return e
 }
 
-// emit send element
+// emit send element,type dependent
 func (p *parser) emit(b Element) {
 	p.elementChan <- b
 	p.start = p.cur
 }
 
+//----------------------------------
+
 // consume repeatly consume rune equal to r.
-func (p *parser) consume(r rune) int {
+func (p *parser) consume(r rune, limit ...int64) int {
+	if len(limit) > 1 {
+		panic("only one argument is allowed")
+	}
+	var max int64 = math.MaxInt64
+	if len(limit) == 1 {
+		max = limit[0]
+	}
 	var count int
-	for pr := p.peek(); pr == r; {
+	for pr := p.peek(); pr == r && count < int(max); {
 		pr = p.next()
 		count++
 	}
 	return count
+}
+
+// merge escape runes(like \*,\_),to one rune.
+func (p *parser) merge() {
+	if p.cur+1 >= len(p.src) {
+		return
+	}
+	p.src = append(p.src[:p.cur], p.src[p.cur+1:]...)
 }
 
 // next returns next rune,if reach end of file returns EOF.
@@ -317,7 +347,16 @@ func parseBegin(p *parser) stateFn {
 		}
 		fallthrough
 	case r == '_' || r == '*' || r == '-':
-		return parseRule
+		r1 := p.peek(2)
+		if r1 == ' ' {
+			if p.forsee(r, ' ', r, ' ', r) {
+				return parseRule
+			}
+		}
+		if r1 == r && p.forsee(r, r, r) {
+			return parseRule
+		}
+		fallthrough
 	case r == '\t' || (r == ' ' && p.forsee(' ', ' ', ' ')):
 		return parseCodeBlock
 	default:
@@ -328,15 +367,85 @@ func parseBegin(p *parser) stateFn {
 
 }
 
-// span main parsing.
-func parseSpan(p *parser) stateFn {
+//-----------span parsing----------
 
-	return nil
+// parse emphasis or strong span
+func parseEmphasis(p *parser) stateFn {
+	start := p.cur
+	marker := p.peek()
+	n := p.consume(marker, 2)
+	t := kind.Strong
+	if n == 1 {
+		t = kind.Emphasis
+	}
+
+	for r := p.next(); r != marker && r != '\n' && r != eof; {
+		if r == '\\' {
+			r1 := p.peek()
+			if isEscapeRune(r1) {
+				p.merge()
+				p.next()
+			}
+		}
+		r = p.next()
+	}
+	r := p.peek()
+	content := p.src[p.start:p.cur]
+	content = regexp.MustCompile("^\\*+").ReplaceAll(content, []byte{})
+	content = regexp.MustCompile("\\*+$").ReplaceAll(content, []byte{})
+	p.src = append(p.src[:p.start], p.src[p.cur:]...)
+
+	if r == marker && t == kind.Strong {
+		p.next()
+		p.emit(&Strong{start, content})
+	} else {
+		p.emit(&Emphasis{start, content})
+	}
+	return parseSpan
 }
 
-func (p *parser) run() {
-	for p.state = parseBegin; p.state != nil; {
-		p.state = p.state(p)
+var escapeRunes = []rune{'*', '_'}
+
+func isEscapeRune(r rune) bool {
+	for _, v := range escapeRunes {
+		if v == r {
+			return true
+		}
+	}
+	return false
+}
+
+// span main parsing.
+func parseSpan(p *parser) stateFn {
+	switch r := p.peek(); {
+	case r == '\\':
+		r1 := p.peek(2)
+		// escape runes
+		if isEscapeRune(r1) {
+			p.next()
+			p.merge()
+			p.next()
+		}
+		fallthrough
+	case r == '*' || r == '_':
+		return parseEmphasis
+	case r == eof:
+		return nil
+	default:
+		return nil
+	}
+}
+
+func (p *parser) run(t kind.ElementType) {
+	if t == kind.Block {
+		for p.state = parseBegin; p.state != nil; {
+			p.state = p.state(p)
+		}
+	}
+	if t == kind.Inline {
+		for p.state = parseSpan; p.state != nil; {
+			p.state = p.state(p)
+		}
 	}
 	close(p.elementChan)
 }

@@ -93,17 +93,31 @@ func (r Rule) ElementType() kind.ElementType { return kind.Block }
 // inline span elements.
 type Inline interface {
 	StartPos() int
-	Content() string
+	Content() []byte
+	Type() kind.Kind
 }
+
+type Emphasis struct {
+	start   int
+	content []byte
+}
+
+func (e *Emphasis) Type() kind.Kind               { return kind.Emphasis }
+func (e *Emphasis) Content() []byte               { return e.content }
+func (e *Emphasis) StartPos() int                 { return e.start }
+func (e *Emphasis) ElementType() kind.ElementType { return kind.Inline }
+
+type Strong struct {
+	Start   int
+	Content []byte
+}
+
+func (s Strong) ElementType() kind.ElementType { return kind.Inline }
 
 type Link struct {
 	Text  string
 	Title string
 	URL   string
-}
-
-type Emphasis struct {
-	Content string
 }
 
 type Image struct {

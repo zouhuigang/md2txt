@@ -3,6 +3,7 @@ package kind
 type Kind int
 type ElementType int
 
+// specific types
 const (
 	Head Kind = iota
 	Paragraph
@@ -10,8 +11,12 @@ const (
 	CodeBlock
 	Code
 	Rule
-	EOF
+
+	Emphasis
+	Strong
 )
+
+// element types
 const (
 	Block = iota
 	Inline
