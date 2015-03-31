@@ -1,6 +1,7 @@
 package kind
 
 type Kind int
+type ElementType int
 
 const (
 	Head Kind = iota
@@ -10,4 +11,8 @@ const (
 	Code
 	Rule
 	EOF
+)
+const (
+	Block = iota
+	Inline
 )

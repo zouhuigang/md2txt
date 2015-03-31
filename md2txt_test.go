@@ -8,7 +8,7 @@ import (
 
 func TestHead(t *testing.T) {
 	p := newParser([]byte("#头部\n"))
-	e := p.element()
+	e := p.element().(Block)
 	if string(e.Content()) != "头部" {
 		t.Logf("%s", e.Content())
 		t.Fail()
@@ -20,7 +20,7 @@ func TestHead(t *testing.T) {
 
 func TestParagraphHead(t *testing.T) {
 	p := newParser([]byte("一级头部\n======\n"))
-	e := p.element()
+	e := p.element().(Block)
 	if string(e.Content()) != "一级头部" {
 		t.Logf("%s", e.Content())
 		t.Fail()
@@ -32,7 +32,7 @@ func TestParagraphHead(t *testing.T) {
 
 func TestParagraph(t *testing.T) {
 	p := newParser([]byte("一级头部\n"))
-	e := p.element()
+	e := p.element().(Block)
 	if string(e.Content()) != "一级头部" {
 		t.Logf("%s", e.Content())
 		t.Fail()
@@ -47,7 +47,7 @@ func TestList(t *testing.T) {
 	p := newParser([]byte(`* item1
 * item2
 * item3`))
-	e := p.element()
+	e := p.element().(Block)
 	if e == nil {
 		t.Fail()
 	}
@@ -63,7 +63,7 @@ item3` {
 	p1 := newParser([]byte(`+ item1
 + item2
 + item3`))
-	e1 := p1.element()
+	e1 := p1.element().(Block)
 	if e1 == nil {
 		t.Fail()
 	}
@@ -82,7 +82,7 @@ item3` {
 func TestCodeBlock(t *testing.T) {
 	p := newParser([]byte(`	codeblock1
 	codeblock2`))
-	e := p.element()
+	e := p.element().(Block)
 	if string(e.Content()) != `codeblock1
 codeblock2` {
 		t.Logf("'%s'", e.Content())
@@ -92,13 +92,16 @@ codeblock2` {
 
 func TestHorizontalRules(t *testing.T) {
 	p := newParser([]byte(`***`))
-	e := p.element()
+	e := p.element().(Block)
 	if e.Type() != kind.Rule {
 		t.Fail()
 	}
 	p1 := newParser([]byte(`* * *`))
-	e1 := p1.element()
+	e1 := p1.element().(Block)
 	if e1.Type() != kind.Rule {
 		t.Fail()
 	}
+}
+func TestLink(t *testing.T) {
+
 }
