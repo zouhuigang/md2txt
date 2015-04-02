@@ -117,6 +117,7 @@ func TestEmpahsis(t *testing.T) {
 	if s.StartPos() != 0 {
 		t.Fail()
 	}
+
 	p1 := newParser([]byte("__strong__"))
 	e1 := p1.element().(Block)
 	sp1 := newSpanParser(e1.Content())
@@ -128,6 +129,25 @@ func TestEmpahsis(t *testing.T) {
 		t.Fail()
 	}
 	if s1.StartPos() != 0 {
+		t.Fail()
+	}
+
+	p2 := newParser([]byte("un*frigging*believable"))
+	e2 := p2.element().(Block)
+	sp2 := newSpanParser(e2.Content())
+	s2 := sp2.element().(Inline)
+
+	if s2.Type() != kind.Emphasis {
+		t.Fail()
+	}
+	if string(s2.Content()) != "frigging" {
+		t.Fail()
+	}
+	if s2.StartPos() != 2 {
+		t.Fail()
+	}
+	if string(sp2.src) != "unbelievable" {
+		println("!!!!")
 		t.Fail()
 	}
 }

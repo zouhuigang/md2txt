@@ -52,6 +52,7 @@ func newSpanParser(src []byte) *parser {
 	go p.run(kind.Inline)
 	return p
 }
+
 func Parse() {
 
 }
@@ -97,6 +98,11 @@ func (p *parser) merge() {
 		return
 	}
 	p.src = append(p.src[:p.cur], p.src[p.cur+1:]...)
+}
+
+// ignore current rune
+func (p *parser) ignore() {
+	p.start = p.cur
 }
 
 // next returns next rune,if reach end of file returns EOF.
@@ -398,7 +404,6 @@ func parseEmphasis(p *parser) stateFn {
 	content = regexp.MustCompile("^"+f+"+").ReplaceAll(content, []byte{})
 	content = regexp.MustCompile(""+f+"+$").ReplaceAll(content, []byte{})
 	p.src = append(p.src[:p.start], p.src[p.cur:]...)
-
 	if r == marker && t == kind.Strong {
 		p.next()
 		p.emit(&Strong{start, content})
@@ -421,22 +426,25 @@ func isEscapeRune(r rune) bool {
 
 // span main parsing.
 func parseSpan(p *parser) stateFn {
-	switch r := p.peek(); {
-	case r == '\\':
-		r1 := p.peek(2)
-		// escape runes
-		if isEscapeRune(r1) {
+	for {
+		switch r := p.peek(); {
+		case r == '\\':
+			r1 := p.peek(2)
+			// escape runes
+			if isEscapeRune(r1) {
+				p.next()
+				p.merge()
+				p.next()
+			}
+			fallthrough
+		case r == '*' || r == '_':
+			return parseEmphasis
+		case r == eof:
+			return nil
+		default:
 			p.next()
-			p.merge()
-			p.next()
+			p.ignore()
 		}
-		fallthrough
-	case r == '*' || r == '_':
-		return parseEmphasis
-	case r == eof:
-		return nil
-	default:
-		return nil
 	}
 }
 
