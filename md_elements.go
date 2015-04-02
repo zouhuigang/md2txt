@@ -12,10 +12,6 @@ type Block interface {
 	Content() []byte // pure text including inline.
 }
 
-type Element interface {
-	ElementType() kind.ElementType
-}
-
 // Head represents element beginning with '#'
 type Head struct {
 	level   int // head type h1,h2,...h6
@@ -23,20 +19,18 @@ type Head struct {
 }
 
 // Head has no spans.
-func (h Head) Spans() []Inline               { return []Inline{} }
-func (h Head) Content() []byte               { return h.content }
-func (h Head) Type() kind.Kind               { return kind.Head }
-func (h Head) ElementType() kind.ElementType { return kind.Block }
+func (h Head) Spans() []Inline { return []Inline{} }
+func (h Head) Content() []byte { return h.content }
+func (h Head) Type() kind.Kind { return kind.Head }
 
 // Paragraph represents paragraph.
 type Paragraph struct {
 	content []byte
 }
 
-func (p Paragraph) Spans() []Inline               { return []Inline{} }
-func (p Paragraph) Content() []byte               { return p.content }
-func (p Paragraph) Type() kind.Kind               { return kind.Paragraph }
-func (p Paragraph) ElementType() kind.ElementType { return kind.Block }
+func (p Paragraph) Spans() []Inline { return []Inline{} }
+func (p Paragraph) Content() []byte { return p.content }
+func (p Paragraph) Type() kind.Kind { return kind.Paragraph }
 
 // BlockQuote represents element beginning with '>'
 type BlockQuote struct {
@@ -62,7 +56,6 @@ func (l List) Content() []byte {
 	}
 	return bytes.Join(output, []byte("\n"))
 }
-func (l List) ElementType() kind.ElementType { return kind.Block }
 
 // list item.
 type Item struct {
@@ -76,19 +69,17 @@ type CodeBlock struct {
 	content []byte
 }
 
-func (c CodeBlock) Spans() []Inline               { return []Inline{} }
-func (c CodeBlock) Content() []byte               { return c.content }
-func (c CodeBlock) Type() kind.Kind               { return kind.CodeBlock }
-func (c CodeBlock) ElementType() kind.ElementType { return kind.Block }
+func (c CodeBlock) Spans() []Inline { return []Inline{} }
+func (c CodeBlock) Content() []byte { return c.content }
+func (c CodeBlock) Type() kind.Kind { return kind.CodeBlock }
 
 // Rule represents horizontal rules
 type Rule struct {
 }
 
-func (r Rule) Spans() []Inline               { return []Inline{} }
-func (r Rule) Content() []byte               { return []byte{} }
-func (r Rule) Type() kind.Kind               { return kind.Rule }
-func (r Rule) ElementType() kind.ElementType { return kind.Block }
+func (r Rule) Spans() []Inline { return []Inline{} }
+func (r Rule) Content() []byte { return []byte{} }
+func (r Rule) Type() kind.Kind { return kind.Rule }
 
 // inline span elements.
 type Inline interface {
@@ -102,20 +93,27 @@ type Emphasis struct {
 	content []byte
 }
 
-func (e Emphasis) Type() kind.Kind               { return kind.Emphasis }
-func (e Emphasis) Content() []byte               { return e.content }
-func (e Emphasis) StartPos() int                 { return e.start }
-func (e Emphasis) ElementType() kind.ElementType { return kind.Inline }
+func (e Emphasis) Type() kind.Kind { return kind.Emphasis }
+func (e Emphasis) Content() []byte { return e.content }
+func (e Emphasis) StartPos() int   { return e.start }
 
 type Strong struct {
 	start   int
 	content []byte
 }
 
-func (s Strong) Type() kind.Kind               { return kind.Strong }
-func (s Strong) ElementType() kind.ElementType { return kind.Inline }
-func (s Strong) Content() []byte               { return s.content }
-func (s Strong) StartPos() int                 { return s.start }
+func (s Strong) Type() kind.Kind { return kind.Strong }
+func (s Strong) Content() []byte { return s.content }
+func (s Strong) StartPos() int   { return s.start }
+
+type Code struct {
+	start   int
+	content []byte
+}
+
+func (c Code) Type() kind.Kind { return kind.Code }
+func (c Code) Content() []byte { return c.content }
+func (c Code) StartPos() int   { return c.start }
 
 type Link struct {
 	Text  string

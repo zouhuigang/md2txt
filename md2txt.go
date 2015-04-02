@@ -1,6 +1,7 @@
 package md2txt
 
 import (
+	"bytes"
 	"math"
 	"regexp"
 	"unicode/utf8"
@@ -401,6 +402,7 @@ func parseEmphasis(p *spanParser) spanStateFn {
 	}
 
 	for r := p.next(); r != marker && r != '\n' && r != eof; {
+		/* has been escaped.
 		if r == '\\' {
 			r1 := p.peek()
 			if isEscapeRune(r1) {
@@ -408,6 +410,7 @@ func parseEmphasis(p *spanParser) spanStateFn {
 				p.next()
 			}
 		}
+		*/
 		r = p.next()
 	}
 	r := p.peek()
@@ -425,6 +428,30 @@ func parseEmphasis(p *spanParser) spanStateFn {
 	} else {
 		p.emit(&Emphasis{start, content})
 	}
+	return parseSpan
+}
+
+func parseRef(p *spanParser) spanStateFn {
+	return nil
+}
+
+// indexOf returns index of r,if r does not
+// exist,returns -1.
+func indexOf(r rune) int {
+	return -1
+}
+
+func parseCode(p *spanParser) spanStateFn {
+	indexOfNewLine := bytes.IndexByte(p.src[p.cur:], '\n')
+	if indexOfNewLine == -1 {
+		indexOfNewLine = len(p.src[p.cur:])
+	}
+	indexOfBacktick := bytes.IndexByte(p.src[p.cur:indexOfNewLine], '\'')
+
+	p.next()
+	content := p.src[p.cur+1 : indexOfBacktick]
+	p.src = append(p.src[:p.cur], p.src[indexOfBacktick+1:]...)
+	p.emit(&Code{p.cur, content})
 	return parseSpan
 }
 

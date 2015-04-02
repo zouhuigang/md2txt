@@ -151,3 +151,12 @@ func TestEmpahsis(t *testing.T) {
 		t.Fail()
 	}
 }
+func TestCode(t *testing.T) {
+	p := newParser([]byte("'code'"))
+	e := p.element()
+	sp := newSpanParser(e.Content())
+	s := sp.element()
+	if s.Type() != kind.Code {
+		t.Fail()
+	}
+}
