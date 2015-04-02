@@ -103,7 +103,7 @@ func TestHorizontalRules(t *testing.T) {
 	}
 }
 
-func TestLink(t *testing.T) {
+func TestEmpahsis(t *testing.T) {
 	p := newParser([]byte("*emphasis*"))
 	e := p.element().(Block)
 	sp := newSpanParser(e.Content())
@@ -117,5 +117,17 @@ func TestLink(t *testing.T) {
 	if s.StartPos() != 0 {
 		t.Fail()
 	}
-
+	p1 := newParser([]byte("__strong__"))
+	e1 := p1.element().(Block)
+	sp1 := newSpanParser(e1.Content())
+	s1 := sp1.element().(Inline)
+	if s1.Type() != kind.Strong {
+		t.Fail()
+	}
+	if string(s1.Content()) != "strong" {
+		t.Fail()
+	}
+	if s1.StartPos() != 0 {
+		t.Fail()
+	}
 }

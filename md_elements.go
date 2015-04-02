@@ -102,17 +102,20 @@ type Emphasis struct {
 	content []byte
 }
 
-func (e *Emphasis) Type() kind.Kind               { return kind.Emphasis }
-func (e *Emphasis) Content() []byte               { return e.content }
-func (e *Emphasis) StartPos() int                 { return e.start }
-func (e *Emphasis) ElementType() kind.ElementType { return kind.Inline }
+func (e Emphasis) Type() kind.Kind               { return kind.Emphasis }
+func (e Emphasis) Content() []byte               { return e.content }
+func (e Emphasis) StartPos() int                 { return e.start }
+func (e Emphasis) ElementType() kind.ElementType { return kind.Inline }
 
 type Strong struct {
-	Start   int
-	Content []byte
+	start   int
+	content []byte
 }
 
+func (s Strong) Type() kind.Kind               { return kind.Strong }
 func (s Strong) ElementType() kind.ElementType { return kind.Inline }
+func (s Strong) Content() []byte               { return s.content }
+func (s Strong) StartPos() int                 { return s.start }
 
 type Link struct {
 	Text  string

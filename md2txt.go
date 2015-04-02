@@ -390,9 +390,13 @@ func parseEmphasis(p *parser) stateFn {
 		r = p.next()
 	}
 	r := p.peek()
+	f := string(marker)
+	if f == "*" {
+		f = "\\" + f
+	}
 	content := p.src[p.start:p.cur]
-	content = regexp.MustCompile("^\\*+").ReplaceAll(content, []byte{})
-	content = regexp.MustCompile("\\*+$").ReplaceAll(content, []byte{})
+	content = regexp.MustCompile("^"+f+"+").ReplaceAll(content, []byte{})
+	content = regexp.MustCompile(""+f+"+$").ReplaceAll(content, []byte{})
 	p.src = append(p.src[:p.start], p.src[p.cur:]...)
 
 	if r == marker && t == kind.Strong {
@@ -404,11 +408,11 @@ func parseEmphasis(p *parser) stateFn {
 	return parseSpan
 }
 
-var escapeRunes = []rune{'*', '_'}
+var escapeRunes = "\\'*_{}[]()#+-.!"
 
 func isEscapeRune(r rune) bool {
 	for _, v := range escapeRunes {
-		if v == r {
+		if rune(v) == r {
 			return true
 		}
 	}
