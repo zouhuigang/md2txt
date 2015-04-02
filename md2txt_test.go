@@ -8,7 +8,7 @@ import (
 
 func TestHead(t *testing.T) {
 	p := newParser([]byte("#头部\n"))
-	e := p.element().(Block)
+	e := p.element()
 	if string(e.Content()) != "头部" {
 		t.Logf("%s", e.Content())
 		t.Fail()
@@ -20,7 +20,7 @@ func TestHead(t *testing.T) {
 
 func TestParagraphHead(t *testing.T) {
 	p := newParser([]byte("一级头部\n======\n"))
-	e := p.element().(Block)
+	e := p.element()
 	if string(e.Content()) != "一级头部" {
 		t.Logf("%s", e.Content())
 		t.Fail()
@@ -32,7 +32,7 @@ func TestParagraphHead(t *testing.T) {
 
 func TestParagraph(t *testing.T) {
 	p := newParser([]byte("一级头部\n"))
-	e := p.element().(Block)
+	e := p.element()
 	if string(e.Content()) != "一级头部" {
 		t.Logf("%s", e.Content())
 		t.Fail()
@@ -47,7 +47,7 @@ func TestList(t *testing.T) {
 	p := newParser([]byte(`* item1
 * item2
 * item3`))
-	e := p.element().(Block)
+	e := p.element()
 	if e == nil {
 		t.Fail()
 	}
@@ -63,7 +63,7 @@ item3` {
 	p1 := newParser([]byte(`+ item1
 + item2
 + item3`))
-	e1 := p1.element().(Block)
+	e1 := p1.element()
 	if e1 == nil {
 		t.Fail()
 	}
@@ -82,7 +82,7 @@ item3` {
 func TestCodeBlock(t *testing.T) {
 	p := newParser([]byte(`	codeblock1
 	codeblock2`))
-	e := p.element().(Block)
+	e := p.element()
 	if string(e.Content()) != `codeblock1
 codeblock2` {
 		t.Logf("'%s'", e.Content())
@@ -92,12 +92,12 @@ codeblock2` {
 
 func TestHorizontalRules(t *testing.T) {
 	p := newParser([]byte(`***`))
-	e := p.element().(Block)
+	e := p.element()
 	if e.Type() != kind.Rule {
 		t.Fail()
 	}
 	p1 := newParser([]byte(`* * *`))
-	e1 := p1.element().(Block)
+	e1 := p1.element()
 	if e1.Type() != kind.Rule {
 		t.Fail()
 	}
@@ -105,9 +105,9 @@ func TestHorizontalRules(t *testing.T) {
 
 func TestEmpahsis(t *testing.T) {
 	p := newParser([]byte("*emphasis*"))
-	e := p.element().(Block)
+	e := p.element()
 	sp := newSpanParser(e.Content())
-	s := sp.element().(Inline)
+	s := sp.element()
 	if s.Type() != kind.Emphasis {
 		t.Fail()
 	}
@@ -119,9 +119,9 @@ func TestEmpahsis(t *testing.T) {
 	}
 
 	p1 := newParser([]byte("__strong__"))
-	e1 := p1.element().(Block)
+	e1 := p1.element()
 	sp1 := newSpanParser(e1.Content())
-	s1 := sp1.element().(Inline)
+	s1 := sp1.element()
 	if s1.Type() != kind.Strong {
 		t.Fail()
 	}
@@ -133,9 +133,9 @@ func TestEmpahsis(t *testing.T) {
 	}
 
 	p2 := newParser([]byte("un*frigging*believable"))
-	e2 := p2.element().(Block)
+	e2 := p2.element()
 	sp2 := newSpanParser(e2.Content())
-	s2 := sp2.element().(Inline)
+	s2 := sp2.element()
 
 	if s2.Type() != kind.Emphasis {
 		t.Fail()

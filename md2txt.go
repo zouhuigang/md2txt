@@ -14,7 +14,7 @@ const (
 )
 const (
 	tab    = "\t"
-	sapce4 = "    s"
+	sapce4 = "    "
 )
 
 type Position struct {
@@ -32,58 +32,63 @@ type parser struct {
 	start  int // start index
 	cur    int // current index
 	length int // length of scanned content
-
-	elementChan chan Element
 }
 
 type spanParser struct {
 	*parser
-	ref   map[string]string
-	state spanStateFn
+	ref        map[string]string
+	state      spanStateFn
+	inlineChan chan Inline
+}
+
+func (p *spanParser) element() Inline { return <-p.inlineChan }
+func (p *spanParser) emit(i Inline) {
+	p.inlineChan <- i
+	p.start = p.cur
+}
+func (p *spanParser) run() {
+	for p.state = parseSpan; p.state != nil; {
+		p.state = p.state(p)
+	}
+	close(p.inlineChan)
 }
 
 type blockParser struct {
 	*parser
-	state stateFn
+	state     stateFn
+	blockChan chan Block
 }
 
-func newParser(src []byte) *parser {
-	p := &parser{
-		src:         src,
-		elementChan: make(chan Element),
+func (p *blockParser) element() Block { return <-p.blockChan }
+func (p *blockParser) emit(b Block) {
+	p.blockChan <- b
+	p.start = p.cur
+}
+func (p *blockParser) run() {
+	for p.state = parseBegin; p.state != nil; {
+		p.state = p.state(p)
 	}
-	bp := blockParser{parser: p}
-	go bp.run()
-	return p
+	close(p.blockChan)
 }
 
+func newParser(src []byte) *blockParser {
+	p := &parser{
+		src: src,
+	}
+	bp := &blockParser{parser: p, blockChan: make(chan Block)}
+	go bp.run()
+	return bp
+}
 func newSpanParser(src []byte) *spanParser {
 	p := &parser{
-		src:         src,
-		elementChan: make(chan Element),
+		src: src,
 	}
-	sp := &spanParser{parser: p, ref: make(map[string]string)}
+	sp := &spanParser{parser: p, ref: make(map[string]string), inlineChan: make(chan Inline)}
 	go sp.run()
 	return sp
 }
 
 const eof = -1
-
-//----------type dependent----------
-
-// get element,type dependent
-func (p *parser) element() Element {
-	e := <-p.elementChan
-	return e
-}
-
-// emit send element,type dependent
-func (p *parser) emit(b Element) {
-	p.elementChan <- b
-	p.start = p.cur
-}
-
-//----------------------------------
 
 // consume repeatly consume rune equal to r.
 func (p *parser) consume(r rune, limit ...int64) int {
@@ -456,17 +461,4 @@ func parseSpan(p *spanParser) spanStateFn {
 			p.ignore()
 		}
 	}
-}
-
-func (p *blockParser) run() {
-	for p.state = parseBegin; p.state != nil; {
-		p.state = p.state(p)
-	}
-	close(p.elementChan)
-}
-func (p *spanParser) run() {
-	for p.state = parseSpan; p.state != nil; {
-		p.state = p.state(p)
-	}
-	close(p.elementChan)
 }
