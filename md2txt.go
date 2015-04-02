@@ -22,7 +22,8 @@ type Position struct {
 	Colunm int
 }
 
-type stateFn func(p *parser) stateFn
+type stateFn func(p *blockParser) stateFn
+type spanStateFn func(p *spanParser) spanStateFn
 
 type parser struct {
 	src []byte
@@ -32,8 +33,18 @@ type parser struct {
 	cur    int // current index
 	length int // length of scanned content
 
-	state       stateFn
 	elementChan chan Element
+}
+
+type spanParser struct {
+	*parser
+	ref   map[string]string
+	state spanStateFn
+}
+
+type blockParser struct {
+	*parser
+	state stateFn
 }
 
 func newParser(src []byte) *parser {
@@ -41,20 +52,19 @@ func newParser(src []byte) *parser {
 		src:         src,
 		elementChan: make(chan Element),
 	}
-	go p.run(kind.Block)
+	bp := blockParser{parser: p}
+	go bp.run()
 	return p
 }
-func newSpanParser(src []byte) *parser {
+
+func newSpanParser(src []byte) *spanParser {
 	p := &parser{
 		src:         src,
 		elementChan: make(chan Element),
 	}
-	go p.run(kind.Inline)
-	return p
-}
-
-func Parse() {
-
+	sp := &spanParser{parser: p, ref: make(map[string]string)}
+	go sp.run()
+	return sp
 }
 
 const eof = -1
@@ -191,7 +201,7 @@ func numberOfLines(input []byte) int {
 }
 
 // parseHead parse head beginning with '#'
-func parseHead(p *parser) stateFn {
+func parseHead(p *blockParser) stateFn {
 	level := p.consume('#')
 	for r := p.next(); r != '\n' && r != eof; {
 		r = p.next()
@@ -208,7 +218,7 @@ func parseHead(p *parser) stateFn {
 // parse text with no prefix.
 // NOTICE:if followed by '---'|'====',
 // emitted as Head Type else Paragraph Type.
-func parseParagraph(p *parser) stateFn {
+func parseParagraph(p *blockParser) stateFn {
 	for r := p.next(); r != '\n' && r != eof; {
 		r = p.next()
 	}
@@ -244,7 +254,7 @@ func parseParagraph(p *parser) stateFn {
 }
 
 // parseList parse lists with embedded sub elements.
-func parseList(p *parser) stateFn {
+func parseList(p *blockParser) stateFn {
 	marker := p.peek()
 	list := &List{}
 	start := p.start
@@ -275,7 +285,7 @@ func parseList(p *parser) stateFn {
 }
 
 // parseCode parses code beginning with 4 sapces or 1 tab.
-func parseCodeBlock(p *parser) stateFn {
+func parseCodeBlock(p *blockParser) stateFn {
 	codeBlock := &CodeBlock{}
 	start := p.start
 	var marker string
@@ -304,7 +314,7 @@ func parseCodeBlock(p *parser) stateFn {
 // parseRule parses rule begining,
 // with more than three '*'|'+'|'-'
 // (can be joined by one white sapce).
-func parseRule(p *parser) stateFn {
+func parseRule(p *blockParser) stateFn {
 	r := p.next()
 	r1 := p.peek(2)
 	if r1 == ' ' {
@@ -329,12 +339,12 @@ func parseRule(p *parser) stateFn {
 }
 
 // parseError is error handler when account for errors.
-func parseError(p *parser) stateFn {
+func parseError(p *blockParser) stateFn {
 	return nil
 }
 
 // block main parsing.
-func parseBegin(p *parser) stateFn {
+func parseBegin(p *blockParser) stateFn {
 	switch r := p.peek(); {
 	case r == '#':
 		return parseHead
@@ -376,7 +386,7 @@ func parseBegin(p *parser) stateFn {
 //-----------span parsing----------
 
 // parse emphasis or strong span
-func parseEmphasis(p *parser) stateFn {
+func parseEmphasis(p *spanParser) spanStateFn {
 	start := p.cur
 	marker := p.peek()
 	n := p.consume(marker, 2)
@@ -425,7 +435,7 @@ func isEscapeRune(r rune) bool {
 }
 
 // span main parsing.
-func parseSpan(p *parser) stateFn {
+func parseSpan(p *spanParser) spanStateFn {
 	for {
 		switch r := p.peek(); {
 		case r == '\\':
@@ -448,16 +458,15 @@ func parseSpan(p *parser) stateFn {
 	}
 }
 
-func (p *parser) run(t kind.ElementType) {
-	if t == kind.Block {
-		for p.state = parseBegin; p.state != nil; {
-			p.state = p.state(p)
-		}
+func (p *blockParser) run() {
+	for p.state = parseBegin; p.state != nil; {
+		p.state = p.state(p)
 	}
-	if t == kind.Inline {
-		for p.state = parseSpan; p.state != nil; {
-			p.state = p.state(p)
-		}
+	close(p.elementChan)
+}
+func (p *spanParser) run() {
+	for p.state = parseSpan; p.state != nil; {
+		p.state = p.state(p)
 	}
 	close(p.elementChan)
 }
