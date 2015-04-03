@@ -116,16 +116,26 @@ func (c Code) Content() []byte { return c.content }
 func (c Code) StartPos() int   { return c.start }
 
 type Link struct {
-	Text  string
-	Title string
-	URL   string
+	start int
+	text  string
+	title string
+	url   string
 }
 
+func (l Link) Type() kind.Kind { return kind.Link }
+func (l Link) Content() []byte { return []byte(l.text + l.title + l.url) }
+func (l Link) StartPos() int   { return l.start }
+
 type Image struct {
-	Text  string
-	Title string
-	Link  string
+	start int
+	text  string
+	title string
+	link  string
 }
+
+func (i Image) Type() kind.Kind { return kind.Image }
+func (i Image) Content() []byte { return []byte(i.text + i.title + i.link) }
+func (i Image) StartPos() int   { return i.start }
 
 type InlineHTML struct {
 }

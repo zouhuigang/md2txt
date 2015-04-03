@@ -5,15 +5,18 @@ type ElementType int
 
 // specific types
 const (
+	// block types
 	Head Kind = iota
 	Paragraph
 	List
 	CodeBlock
-	Code
 	Rule
-
+	// inline types
 	Emphasis
 	Strong
+	Link
+	Code
+	Image
 )
 
 // element types

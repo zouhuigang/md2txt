@@ -432,13 +432,39 @@ func parseEmphasis(p *spanParser) spanStateFn {
 }
 
 func parseRef(p *spanParser) spanStateFn {
-	return nil
-}
+	r := p.peek()
+	if r == '[' {
+		//start := p.cur
+		p.next()
+		link := &Link{}
+		indexOfRightBracket := bytes.IndexByte(p.src[p.cur:], ']')
+		link.text = string(p.src[p.cur : p.cur+indexOfRightBracket])
+		p.cur = p.cur + indexOfRightBracket + 1
+		r := p.peek()
+		if r == '[' {
 
-// indexOf returns index of r,if r does not
-// exist,returns -1.
-func indexOf(r rune) int {
-	return -1
+		}
+		if r == '(' {
+			indexOfRightParen := bytes.IndexByte(p.src[p.cur:], ')')
+			ref := p.src[p.cur+1 : p.cur+indexOfRightParen]
+			indexOfQuota := bytes.IndexByte(ref, '"')
+			title := ref[indexOfQuota+1:]
+			ref = ref[:indexOfQuota]
+			indexOfQuota = bytes.LastIndex(title, []byte{'"'})
+			if indexOfQuota == -1 {
+				indexOfQuota = len(title)
+			}
+			title = title[:indexOfQuota]
+			ref = bytes.TrimSpace(ref)
+			link.url = string(ref)
+			link.title = string(title)
+			p.emit(link)
+		}
+	}
+	if r == '!' {
+		return nil
+	}
+	return parseSpan
 }
 
 func parseCode(p *spanParser) spanStateFn {
@@ -446,9 +472,10 @@ func parseCode(p *spanParser) spanStateFn {
 	if indexOfNewLine == -1 {
 		indexOfNewLine = len(p.src[p.cur:])
 	}
-	indexOfBacktick := bytes.LastIndex(p.src[p.cur:indexOfNewLine], []byte{'\''})
-	p.next()
-	content := p.src[p.cur:indexOfBacktick]
+	//println(string(p.src[p.cur : p.cur+indexOfNewLine]))
+	indexOfBacktick := bytes.LastIndex(p.src[p.cur:p.cur+indexOfNewLine], []byte{'\''})
+	content := p.src[p.cur : p.cur+indexOfBacktick+1]
+	content = content[1 : len(content)-1]
 	p.src = append(p.src[:p.cur], p.src[indexOfBacktick+1:]...)
 	p.emit(&Code{p.cur, content})
 	return parseSpan
@@ -480,6 +507,8 @@ func parseSpan(p *spanParser) spanStateFn {
 			fallthrough
 		case r == '\'':
 			return parseCode
+		case r == '!' || r == '[':
+			return parseRef
 		case r == '*' || r == '_':
 			return parseEmphasis
 		case r == eof:

@@ -152,7 +152,7 @@ func TestEmpahsis(t *testing.T) {
 	}
 }
 func TestCode(t *testing.T) {
-	p := newParser([]byte("'code'"))
+	p := newParser([]byte("It is 'code'"))
 	e := p.element()
 	sp := newSpanParser(e.Content())
 	s := sp.element()
@@ -160,7 +160,20 @@ func TestCode(t *testing.T) {
 		t.Fail()
 	}
 	if string(s.Content()) != "code" {
-		println(string(s.Content()))
+		t.Logf("%s", s.Content())
+		t.Fail()
+	}
+}
+func TestLink(t *testing.T) {
+	p := newParser([]byte("It is [link](ref \"title\")"))
+	e := p.element()
+	sp := newSpanParser(e.Content())
+	s := sp.element()
+	if s.Type() != kind.Link {
+		t.Fail()
+	}
+	if string(s.Content()) != "linktitleref" {
+		t.Logf("%s", s.Content())
 		t.Fail()
 	}
 }
