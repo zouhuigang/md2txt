@@ -446,10 +446,9 @@ func parseCode(p *spanParser) spanStateFn {
 	if indexOfNewLine == -1 {
 		indexOfNewLine = len(p.src[p.cur:])
 	}
-	indexOfBacktick := bytes.IndexByte(p.src[p.cur:indexOfNewLine], '\'')
-
+	indexOfBacktick := bytes.LastIndex(p.src[p.cur:indexOfNewLine], []byte{'\''})
 	p.next()
-	content := p.src[p.cur+1 : indexOfBacktick]
+	content := p.src[p.cur:indexOfBacktick]
 	p.src = append(p.src[:p.cur], p.src[indexOfBacktick+1:]...)
 	p.emit(&Code{p.cur, content})
 	return parseSpan
@@ -479,6 +478,8 @@ func parseSpan(p *spanParser) spanStateFn {
 				p.next()
 			}
 			fallthrough
+		case r == '\'':
+			return parseCode
 		case r == '*' || r == '_':
 			return parseEmphasis
 		case r == eof:

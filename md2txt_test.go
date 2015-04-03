@@ -159,4 +159,8 @@ func TestCode(t *testing.T) {
 	if s.Type() != kind.Code {
 		t.Fail()
 	}
+	if string(s.Content()) != "code" {
+		println(string(s.Content()))
+		t.Fail()
+	}
 }
