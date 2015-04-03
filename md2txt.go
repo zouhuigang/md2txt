@@ -80,6 +80,7 @@ func newParser(src []byte) *blockParser {
 	go bp.run()
 	return bp
 }
+
 func newSpanParser(src []byte) *spanParser {
 	p := &parser{
 		src: src,
@@ -389,7 +390,7 @@ func parseBegin(p *blockParser) stateFn {
 
 }
 
-//-----------span parsing----------
+// -----------span parsing----------
 
 // parse emphasis or strong span
 func parseEmphasis(p *spanParser) spanStateFn {
@@ -431,11 +432,15 @@ func parseEmphasis(p *spanParser) spanStateFn {
 	return parseSpan
 }
 
+func match(left, right byte, src []byte) (start, end int) {
+	start = bytes.IndexByte(src, left)
+	end = start + 1 + bytes.IndexByte(src[start+1:], right)
+	return
+}
+
 func parseRef(p *spanParser) spanStateFn {
-	r := p.peek()
-	if r == '[' {
-		//start := p.cur
-		p.next()
+	r := p.next()
+	if r == '[' { // link
 		link := &Link{}
 		indexOfRightBracket := bytes.IndexByte(p.src[p.cur:], ']')
 		link.text = string(p.src[p.cur : p.cur+indexOfRightBracket])
@@ -445,6 +450,7 @@ func parseRef(p *spanParser) spanStateFn {
 
 		}
 		if r == '(' {
+			// TODO:parse reference and use match function instead of index finding method.
 			indexOfRightParen := bytes.IndexByte(p.src[p.cur:], ')')
 			ref := p.src[p.cur+1 : p.cur+indexOfRightParen]
 			indexOfQuota := bytes.IndexByte(ref, '"')
@@ -461,8 +467,29 @@ func parseRef(p *spanParser) spanStateFn {
 			p.emit(link)
 		}
 	}
-	if r == '!' {
-		return nil
+	if r == '!' { // image
+		if p.peek() == '[' {
+
+			image := &Image{}
+
+			// parse text
+			start, end := match('[', ']', p.src[p.cur:])
+			text := p.src[p.cur+start+1 : p.cur+end]
+			image.text = string(text)
+			p.src = append(p.src[:p.cur+start-1], p.src[p.cur+end+1:]...)
+			// parse link
+			p.cur--
+			start, end = match('(', ')', p.src[p.cur:])
+			ref := p.src[p.cur+start+1 : p.cur+end]
+			p.src = append(p.src[:p.cur+start], p.src[p.cur+end+1:]...)
+			// parse title
+			start, end = match('"', '"', ref)
+			title := ref[start+1 : end]
+			image.title = string(title)
+			ref = bytes.TrimSpace(append(ref[:start], ref[end+1:]...))
+			image.link = string(ref)
+			p.emit(image)
+		}
 	}
 	return parseSpan
 }

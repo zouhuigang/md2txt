@@ -1,9 +1,8 @@
 package md2txt
 
 import (
-	"testing"
-
 	"github.com/ggaaooppeenngg/md2txt/kind"
+	"testing"
 )
 
 func TestHead(t *testing.T) {
@@ -104,9 +103,7 @@ func TestHorizontalRules(t *testing.T) {
 }
 
 func TestEmpahsis(t *testing.T) {
-	p := newParser([]byte("*emphasis*"))
-	e := p.element()
-	sp := newSpanParser(e.Content())
+	sp := newSpanParser([]byte("*emphasis*"))
 	s := sp.element()
 	if s.Type() != kind.Emphasis {
 		t.Fail()
@@ -118,9 +115,7 @@ func TestEmpahsis(t *testing.T) {
 		t.Fail()
 	}
 
-	p1 := newParser([]byte("__strong__"))
-	e1 := p1.element()
-	sp1 := newSpanParser(e1.Content())
+	sp1 := newSpanParser([]byte("__strong__"))
 	s1 := sp1.element()
 	if s1.Type() != kind.Strong {
 		t.Fail()
@@ -132,9 +127,7 @@ func TestEmpahsis(t *testing.T) {
 		t.Fail()
 	}
 
-	p2 := newParser([]byte("un*frigging*believable"))
-	e2 := p2.element()
-	sp2 := newSpanParser(e2.Content())
+	sp2 := newSpanParser([]byte("un*frigging*believable"))
 	s2 := sp2.element()
 
 	if s2.Type() != kind.Emphasis {
@@ -152,9 +145,7 @@ func TestEmpahsis(t *testing.T) {
 	}
 }
 func TestCode(t *testing.T) {
-	p := newParser([]byte("It is 'code'"))
-	e := p.element()
-	sp := newSpanParser(e.Content())
+	sp := newSpanParser([]byte("It is 'code'"))
 	s := sp.element()
 	if s.Type() != kind.Code {
 		t.Fail()
@@ -165,14 +156,24 @@ func TestCode(t *testing.T) {
 	}
 }
 func TestLink(t *testing.T) {
-	p := newParser([]byte("It is [link](ref \"title\")"))
-	e := p.element()
-	sp := newSpanParser(e.Content())
+	sp := newSpanParser([]byte("It is [link](ref \"title\")"))
 	s := sp.element()
 	if s.Type() != kind.Link {
 		t.Fail()
 	}
 	if string(s.Content()) != "linktitleref" {
+		t.Logf("%s", s.Content())
+		t.Fail()
+	}
+}
+
+func TestImage(t *testing.T) {
+	sp := newSpanParser([]byte("It is ![image](ref \"title\")"))
+	s := sp.element()
+	if s.Type() != kind.Image {
+		t.Fail()
+	}
+	if string(s.Content()) != "imagetitleref" {
 		t.Logf("%s", s.Content())
 		t.Fail()
 	}
