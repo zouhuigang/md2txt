@@ -155,6 +155,7 @@ func TestCode(t *testing.T) {
 		t.Fail()
 	}
 }
+
 func TestLink(t *testing.T) {
 	sp := newSpanParser([]byte("It is [link](ref \"title\")"))
 	s := sp.element()
@@ -163,6 +164,10 @@ func TestLink(t *testing.T) {
 	}
 	if string(s.Content()) != "linktitleref" {
 		t.Logf("%s", s.Content())
+		t.Fail()
+	}
+	if string(sp.src) != "It is " {
+		t.Logf("%s", sp.src)
 		t.Fail()
 	}
 }
@@ -177,4 +182,9 @@ func TestImage(t *testing.T) {
 		t.Logf("%s", s.Content())
 		t.Fail()
 	}
+	if string(sp.src) != "It is " {
+		t.Logf("%s", sp.src)
+		t.Fail()
+	}
+
 }

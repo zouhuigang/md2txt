@@ -117,24 +117,24 @@ func (c Code) StartPos() int   { return c.start }
 
 type Link struct {
 	start int
-	text  string
-	title string
-	url   string
+	text  []byte
+	title []byte
+	url   []byte
 }
 
 func (l Link) Type() kind.Kind { return kind.Link }
-func (l Link) Content() []byte { return []byte(l.text + l.title + l.url) }
+func (l Link) Content() []byte { return bytes.Join([][]byte{l.text, l.title, l.url}, []byte{}) }
 func (l Link) StartPos() int   { return l.start }
 
 type Image struct {
 	start int
-	text  string
-	title string
-	link  string
+	text  []byte
+	title []byte
+	link  []byte
 }
 
 func (i Image) Type() kind.Kind { return kind.Image }
-func (i Image) Content() []byte { return []byte(i.text + i.title + i.link) }
+func (i Image) Content() []byte { return bytes.Join([][]byte{i.text, i.title, i.link}, []byte{}) }
 func (i Image) StartPos() int   { return i.start }
 
 type InlineHTML struct {

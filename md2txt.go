@@ -438,59 +438,51 @@ func match(left, right byte, src []byte) (start, end int) {
 	return
 }
 
+// cut content with left and right wrapped from the src.
+func cut(left, right byte, begin int, src []byte) (remain []byte, cut []byte) {
+	start := bytes.IndexByte(src[begin:], left)
+	end := start + 1 + bytes.IndexByte(src[begin+start+1:], right)
+	cut = make([]byte, end-start-1)
+	copy(cut, src[begin+start+1:begin+end])
+	remain = append(src[:begin+start], src[begin+end+1:]...)
+	return
+}
+
 func parseRef(p *spanParser) spanStateFn {
-	r := p.next()
-	if r == '[' { // link
-		link := &Link{}
-		indexOfRightBracket := bytes.IndexByte(p.src[p.cur:], ']')
-		link.text = string(p.src[p.cur : p.cur+indexOfRightBracket])
-		p.cur = p.cur + indexOfRightBracket + 1
-		r := p.peek()
-		if r == '[' {
-
-		}
-		if r == '(' {
-			// TODO:parse reference and use match function instead of index finding method.
-			indexOfRightParen := bytes.IndexByte(p.src[p.cur:], ')')
-			ref := p.src[p.cur+1 : p.cur+indexOfRightParen]
-			indexOfQuota := bytes.IndexByte(ref, '"')
-			title := ref[indexOfQuota+1:]
-			ref = ref[:indexOfQuota]
-			indexOfQuota = bytes.LastIndex(title, []byte{'"'})
-			if indexOfQuota == -1 {
-				indexOfQuota = len(title)
-			}
-			title = title[:indexOfQuota]
-			ref = bytes.TrimSpace(ref)
-			link.url = string(ref)
-			link.title = string(title)
-			p.emit(link)
-		}
+	var (
+		text  []byte
+		title []byte
+		ref   []byte
+	)
+	r := p.peek()
+	k := kind.Image
+	if r == '[' {
+		k = kind.Link
 	}
-	if r == '!' { // image
-		if p.peek() == '[' {
-
-			image := &Image{}
-
-			// parse text
-			start, end := match('[', ']', p.src[p.cur:])
-			text := p.src[p.cur+start+1 : p.cur+end]
-			image.text = string(text)
-			p.src = append(p.src[:p.cur+start-1], p.src[p.cur+end+1:]...)
-			// parse link
-			p.cur--
-			start, end = match('(', ')', p.src[p.cur:])
-			ref := p.src[p.cur+start+1 : p.cur+end]
-			p.src = append(p.src[:p.cur+start], p.src[p.cur+end+1:]...)
-			// parse title
-			start, end = match('"', '"', ref)
-			title := ref[start+1 : end]
-			image.title = string(title)
-			ref = bytes.TrimSpace(append(ref[:start], ref[end+1:]...))
-			image.link = string(ref)
-			p.emit(image)
-		}
+	if r == '!' && p.peek(2) == '[' {
+		p.src = append(p.src[:p.cur], p.src[p.cur+1:]...)
+		k = kind.Image
 	}
+
+	p.src, text = cut('[', ']', p.cur, p.src)
+	r = p.peek()
+	if r == '[' {
+
+	}
+	if r == '(' {
+		p.src, ref = cut('(', ')', p.cur, p.src)
+		ref, title = cut('"', '"', 0, ref)
+		ref = bytes.TrimSpace(ref)
+	}
+
+	if k == kind.Image {
+		p.emit(&Image{p.cur, text, title, ref})
+	}
+
+	if k == kind.Link {
+		p.emit(&Link{p.cur, text, title, ref})
+	}
+
 	return parseSpan
 }
 
