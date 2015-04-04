@@ -117,6 +117,7 @@ func (c Code) StartPos() int   { return c.start }
 
 type Link struct {
 	start int
+	id    []byte
 	text  []byte
 	title []byte
 	url   []byte
@@ -128,6 +129,7 @@ func (l Link) StartPos() int   { return l.start }
 
 type Image struct {
 	start int
+	id    []byte
 	text  []byte
 	title []byte
 	link  []byte

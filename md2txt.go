@@ -35,9 +35,14 @@ type parser struct {
 	length int // length of scanned content
 }
 
+type reference struct {
+	link  []byte
+	title []byte
+}
+
 type spanParser struct {
 	*parser
-	ref        map[string]string
+	ref        map[string]*reference
 	state      spanStateFn
 	inlineChan chan Inline
 }
@@ -85,7 +90,7 @@ func newSpanParser(src []byte) *spanParser {
 	p := &parser{
 		src: src,
 	}
-	sp := &spanParser{parser: p, ref: make(map[string]string), inlineChan: make(chan Inline)}
+	sp := &spanParser{parser: p, ref: make(map[string]*reference), inlineChan: make(chan Inline)}
 	go sp.run()
 	return sp
 }
@@ -403,15 +408,6 @@ func parseEmphasis(p *spanParser) spanStateFn {
 	}
 
 	for r := p.next(); r != marker && r != '\n' && r != eof; {
-		/* has been escaped.
-		if r == '\\' {
-			r1 := p.peek()
-			if isEscapeRune(r1) {
-				p.merge()
-				p.next()
-			}
-		}
-		*/
 		r = p.next()
 	}
 	r := p.peek()
@@ -453,11 +449,24 @@ func parseRef(p *spanParser) spanStateFn {
 		text  []byte
 		title []byte
 		ref   []byte
+		id    []byte
 	)
+
 	r := p.peek()
-	k := kind.Image
+	var k kind.Kind
 	if r == '[' {
 		k = kind.Link
+		i1 := bytes.IndexByte(p.src[p.cur:], ']')
+		i2 := bytes.IndexByte(p.src[p.cur:], ':')
+		// reference.
+		if i1+1 == i2 {
+			p.src, id = cut('[', ']', p.cur, p.src)
+			p.src, ref = cut(':', '\n', p.cur, p.src)
+			ref, title = cut('"', '"', 0, ref)
+			ref = bytes.TrimSpace(ref)
+			p.ref[string(id)] = &reference{ref, title}
+			return parseSpan
+		}
 	}
 	if r == '!' && p.peek(2) == '[' {
 		p.src = append(p.src[:p.cur], p.src[p.cur+1:]...)
@@ -466,9 +475,11 @@ func parseRef(p *spanParser) spanStateFn {
 
 	p.src, text = cut('[', ']', p.cur, p.src)
 	r = p.peek()
-	if r == '[' {
 
+	if r == '[' {
+		p.src, id = cut('[', ']', p.cur, p.src)
 	}
+
 	if r == '(' {
 		p.src, ref = cut('(', ')', p.cur, p.src)
 		ref, title = cut('"', '"', 0, ref)
@@ -476,11 +487,11 @@ func parseRef(p *spanParser) spanStateFn {
 	}
 
 	if k == kind.Image {
-		p.emit(&Image{p.cur, text, title, ref})
+		p.emit(&Image{p.cur, id, text, title, ref})
 	}
 
 	if k == kind.Link {
-		p.emit(&Link{p.cur, text, title, ref})
+		p.emit(&Link{p.cur, id, text, title, ref})
 	}
 
 	return parseSpan
@@ -491,9 +502,10 @@ func parseCode(p *spanParser) spanStateFn {
 	if indexOfNewLine == -1 {
 		indexOfNewLine = len(p.src[p.cur:])
 	}
-	//println(string(p.src[p.cur : p.cur+indexOfNewLine]))
 	indexOfBacktick := bytes.LastIndex(p.src[p.cur:p.cur+indexOfNewLine], []byte{'\''})
-	content := p.src[p.cur : p.cur+indexOfBacktick+1]
+
+	var content = make([]byte, indexOfBacktick+1)
+	copy(content, p.src[p.cur:p.cur+indexOfBacktick+1])
 	content = content[1 : len(content)-1]
 	p.src = append(p.src[:p.cur], p.src[indexOfBacktick+1:]...)
 	p.emit(&Code{p.cur, content})

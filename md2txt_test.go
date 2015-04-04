@@ -188,3 +188,15 @@ func TestImage(t *testing.T) {
 	}
 
 }
+
+func TestReference(t *testing.T) {
+	sp := newSpanParser([]byte("[id]: link \"title\"\n"))
+	sp.element()
+	ref := sp.ref["id"]
+	if string(ref.link) != "link" {
+		t.Fail()
+	}
+	if string(ref.title) != "title" {
+		t.Fail()
+	}
+}
