@@ -1,6 +1,6 @@
 /*
 Package md2txt implements a tool to convert markdown to pure text.
-It uses no regexp,so gains more efficiency.
+It uses no regexp,and gains more efficiency.
 */
 package md2txt
 
@@ -17,33 +17,36 @@ const (
 	BASIC = iota // Basic Markdown based on http://daringfireball.net/projects/markdown/syntax
 	GFM          // Github Flavored Markdown
 )
+
 const (
 	tab    = "\t"
 	sapce4 = "    "
 )
 
-type Position struct {
-	Row    int
-	Colunm int
-}
-
+// state for block parser.
 type stateFn func(p *blockParser) stateFn
+
+// state for span parser.
 type spanStateFn func(p *spanParser) spanStateFn
 
+// parser is a main part for a parsing procedure,
+// it provides convinient methods for parsing.
 type parser struct {
-	src []byte
-	pos Position
+	src []byte // source bytes slice.
 
-	start  int // start index
-	cur    int // current index
-	length int // length of scanned content
+	start  int // start index.
+	cur    int // current index.
+	length int // length of scanned content.
 }
 
+// reference is used in link or image,
+// it's format is [id]: url "title".
 type reference struct {
 	link  []byte
 	title []byte
 }
 
+// span parser aims at span elements parsing.
 type spanParser struct {
 	*parser
 	ref      map[string]*reference
@@ -51,11 +54,18 @@ type spanParser struct {
 	spanChan chan Span
 }
 
+// element gets a span from the channel,
+// return nil if no more span elements.
 func (p *spanParser) element() Span { return <-p.spanChan }
-func (p *spanParser) emit(i Span) {
-	p.spanChan <- i
+
+// emit emits a span element to the channel.
+func (p *spanParser) emit(s Span) {
+	p.spanChan <- s
 	p.start = p.cur
 }
+
+// run is the main procedure of the state machine.
+// when it runs into the end close the channel.
 func (p *spanParser) run() {
 	for p.state = parseSpan; p.state != nil; {
 		p.state = p.state(p)
@@ -439,12 +449,6 @@ func parseEmphasis(p *spanParser) spanStateFn {
 	return parseSpan
 }
 
-func match(left, right byte, src []byte) (start, end int) {
-	start = bytes.IndexByte(src, left)
-	end = start + 1 + bytes.IndexByte(src[start+1:], right)
-	return
-}
-
 // cut content with left and right wrapped from the src.
 func cut(left, right byte, begin int, src []byte) (remain []byte, cut []byte) {
 	start := bytes.IndexByte(src[begin:], left)
@@ -455,6 +459,7 @@ func cut(left, right byte, begin int, src []byte) (remain []byte, cut []byte) {
 	return
 }
 
+// parseRef parses links and images including references referring to the previous links or images.
 func parseRef(p *spanParser) spanStateFn {
 	var (
 		text  []byte
@@ -507,6 +512,7 @@ func parseRef(p *spanParser) spanStateFn {
 	return parseSpan
 }
 
+// parseCode parses span code.
 func parseCode(p *spanParser) spanStateFn {
 	indexOfNewLine := bytes.IndexByte(p.src[p.cur:], '\n')
 	if indexOfNewLine == -1 {
@@ -524,6 +530,7 @@ func parseCode(p *spanParser) spanStateFn {
 
 var escapeRunes = "\\'*_{}[]()#+-.!"
 
+// isEscapeRune returns true if r needs escaping.
 func isEscapeRune(r rune) bool {
 	for _, v := range escapeRunes {
 		if rune(v) == r {

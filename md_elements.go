@@ -6,6 +6,7 @@ import (
 	"github.com/ggaaooppeenngg/md2txt/kind"
 )
 
+// Block is the block element interface.
 type Block interface {
 	Type() kind.Kind // kind of block.
 	Content() []byte // pure text including inline.
