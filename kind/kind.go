@@ -1,3 +1,6 @@
+/*
+Type definitions for markdown elements.
+*/
 package kind
 
 type Kind int

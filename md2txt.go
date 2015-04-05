@@ -1,3 +1,7 @@
+/*
+Package md2txt implements a tool to convert markdown to pure text.
+It uses no regexp,so gains more efficiency.
+*/
 package md2txt
 
 import (
@@ -42,21 +46,21 @@ type reference struct {
 
 type spanParser struct {
 	*parser
-	ref        map[string]*reference
-	state      spanStateFn
-	inlineChan chan Inline
+	ref      map[string]*reference
+	state    spanStateFn
+	spanChan chan Span
 }
 
-func (p *spanParser) element() Inline { return <-p.inlineChan }
-func (p *spanParser) emit(i Inline) {
-	p.inlineChan <- i
+func (p *spanParser) element() Span { return <-p.spanChan }
+func (p *spanParser) emit(i Span) {
+	p.spanChan <- i
 	p.start = p.cur
 }
 func (p *spanParser) run() {
 	for p.state = parseSpan; p.state != nil; {
 		p.state = p.state(p)
 	}
-	close(p.inlineChan)
+	close(p.spanChan)
 }
 
 type blockParser struct {
@@ -90,7 +94,7 @@ func newSpanParser(src []byte) *spanParser {
 	p := &parser{
 		src: src,
 	}
-	sp := &spanParser{parser: p, ref: make(map[string]*reference), inlineChan: make(chan Inline)}
+	sp := &spanParser{parser: p, ref: make(map[string]*reference), spanChan: make(chan Span)}
 	go sp.run()
 	return sp
 }
@@ -231,33 +235,40 @@ func parseHead(p *blockParser) stateFn {
 // NOTICE:if followed by '---'|'====',
 // emitted as Head Type else Paragraph Type.
 func parseParagraph(p *blockParser) stateFn {
-	for r := p.next(); r != '\n' && r != eof; {
-		r = p.next()
+	for r := p.next(); r != eof; r = p.next() {
+		if r == '\n' {
+			r = p.peek()
+			// Head type has tailling ----- (H2) or ====== (H1)
+			if r == '-' || r == '=' {
+				p.consume(r)
+				r1 := p.peek(2)
+				if r1 == '\n' {
+					p.next()
+				}
+				content := p.src[p.start:p.cur]
+				content = regexp.MustCompile("\n?"+string(r)+"*\n?").ReplaceAll(content, []byte{})
+
+				var level int
+				if r == '-' {
+					level = 2
+				}
+				if r == '=' {
+					level = 1
+				}
+
+				head := &Head{level, content}
+				p.emit(head)
+				return parseBegin
+			}
+			if r == '\n' {
+				p.next()
+				goto emit
+			}
+		}
 	}
+emit:
 	content := p.src[p.start:p.cur]
-	r := p.peek()
-	// Head type has tailling ----- (H2) or ====== (H1)
-	if r == '-' || r == '=' {
-		p.consume(r)
-		r1 := p.peek(2)
-		if r1 == '\n' {
-			p.next()
-		}
-		content := p.src[p.start:p.cur]
-		content = regexp.MustCompile("\n?"+string(r)+"*\n?").ReplaceAll(content, []byte{})
 
-		var level int
-		if r == '-' {
-			level = 2
-		}
-		if r == '=' {
-			level = 1
-		}
-
-		head := &Head{level, content}
-		p.emit(head)
-		return parseBegin
-	}
 	content = regexp.MustCompile("\n{0,2}$").ReplaceAll(content, []byte{})
 	paragraph := &Paragraph{content}
 	p.emit(paragraph)
@@ -450,10 +461,10 @@ func parseRef(p *spanParser) spanStateFn {
 		title []byte
 		ref   []byte
 		id    []byte
+		k     kind.Kind
 	)
 
 	r := p.peek()
-	var k kind.Kind
 	if r == '[' {
 		k = kind.Link
 		i1 := bytes.IndexByte(p.src[p.cur:], ']')
@@ -485,7 +496,6 @@ func parseRef(p *spanParser) spanStateFn {
 		ref, title = cut('"', '"', 0, ref)
 		ref = bytes.TrimSpace(ref)
 	}
-
 	if k == kind.Image {
 		p.emit(&Image{p.cur, id, text, title, ref})
 	}

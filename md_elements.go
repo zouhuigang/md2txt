@@ -7,9 +7,12 @@ import (
 )
 
 type Block interface {
-	Spans() []Inline // span elements including pure text.
 	Type() kind.Kind // kind of block.
 	Content() []byte // pure text including inline.
+}
+
+// TODO:support block html
+type BlockHtml struct {
 }
 
 // Head represents element beginning with '#'
@@ -18,8 +21,6 @@ type Head struct {
 	content []byte
 }
 
-// Head has no spans.
-func (h Head) Spans() []Inline { return []Inline{} }
 func (h Head) Content() []byte { return h.content }
 func (h Head) Type() kind.Kind { return kind.Head }
 
@@ -28,8 +29,24 @@ type Paragraph struct {
 	content []byte
 }
 
-func (p Paragraph) Spans() []Inline { return []Inline{} }
-func (p Paragraph) Content() []byte { return p.content }
+func (p Paragraph) Content() []byte {
+	var (
+		sp     = newSpanParser(p.content)
+		spans  []Span
+		length int
+	)
+	for s := sp.element(); s != nil; s = sp.element() {
+		spans = append(spans, s)
+	}
+	p.content = sp.src
+
+	for _, v := range spans {
+		p.content = append(p.content[:length+v.StartPos()], append(v.Content(), p.content[length+v.StartPos():]...)...)
+		length += len(v.Content())
+	}
+	return p.content
+}
+
 func (p Paragraph) Type() kind.Kind { return kind.Paragraph }
 
 // BlockQuote represents element beginning with '>'
@@ -45,7 +62,6 @@ type List struct {
 }
 
 // list has no inline but subitems have inline elements.
-func (l List) Spans() []Inline { return []Inline{} }
 func (l List) Type() kind.Kind { return kind.List }
 
 // TODO:handle sub elements
@@ -69,7 +85,6 @@ type CodeBlock struct {
 	content []byte
 }
 
-func (c CodeBlock) Spans() []Inline { return []Inline{} }
 func (c CodeBlock) Content() []byte { return c.content }
 func (c CodeBlock) Type() kind.Kind { return kind.CodeBlock }
 
@@ -77,12 +92,11 @@ func (c CodeBlock) Type() kind.Kind { return kind.CodeBlock }
 type Rule struct {
 }
 
-func (r Rule) Spans() []Inline { return []Inline{} }
 func (r Rule) Content() []byte { return []byte{} }
 func (r Rule) Type() kind.Kind { return kind.Rule }
 
 // inline span elements.
-type Inline interface {
+type Span interface {
 	StartPos() int
 	Content() []byte
 	Type() kind.Kind
@@ -139,8 +153,6 @@ func (i Image) Type() kind.Kind { return kind.Image }
 func (i Image) Content() []byte { return bytes.Join([][]byte{i.text, i.title, i.link}, []byte{}) }
 func (i Image) StartPos() int   { return i.start }
 
+// TODO: support inline html
 type InlineHTML struct {
-}
-
-type EOF struct {
 }
