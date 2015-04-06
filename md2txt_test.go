@@ -201,7 +201,7 @@ func TestReference(t *testing.T) {
 	}
 }
 
-func TestExample(t *testing.T) {
+func TestExample1(t *testing.T) {
 	s := newParser([]byte(`This is a *paragraph*,this is a
 [link](http://www.baidu.com "百度") and this is a ![image](http://www.baidu.com "百度图片")`))
 	p := s.element()

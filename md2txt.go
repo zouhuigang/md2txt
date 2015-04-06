@@ -150,7 +150,7 @@ func (p *parser) next() rune {
 	r, w := utf8.DecodeRune(p.src[p.cur:])
 	p.length = w
 	p.cur += p.length
-	p.pos.Colunm += p.length
+	//p.pos.Colunm += p.length
 	return r
 }
 
@@ -211,7 +211,7 @@ func (p *parser) peek(i ...int) rune {
 
 // backup backup a rune to the src.
 func (p *parser) backup() {
-	p.pos.Colunm -= p.length
+	//p.pos.Colunm -= p.length
 	p.cur -= p.length
 }
 
@@ -566,4 +566,12 @@ func parseSpan(p *spanParser) spanStateFn {
 			p.ignore()
 		}
 	}
+}
+
+func Parse(src []byte) (content []byte) {
+	p := newParser(src)
+	for block := p.element(); block != nil; block = p.element() {
+		content = append(content, block.Content()...)
+	}
+	return content
 }
