@@ -51,10 +51,14 @@ func (p Paragraph) Content() []byte {
 func (p Paragraph) Type() kind.Kind { return kind.Paragraph }
 
 // BlockQuote represents element beginning with '>'
-type BlockQuote struct {
-	Level   int // level of recursive layer
-	Content string
+type QuoteBlock struct {
+	level     int // level of recursive layer
+	content   []byte
+	subBlocks []Block
 }
+
+func (q QuoteBlock) Content() []byte { return q.content }
+func (q QuoteBlock) Type() kind.Kind { return kind.QuoteBlock }
 
 // List represents element beginning with '*'|'+'|'-'|digit
 type List struct {

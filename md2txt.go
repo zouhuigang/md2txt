@@ -13,9 +13,11 @@ import (
 	"github.com/ggaaooppeenngg/md2txt/kind"
 )
 
+type EXT int
+
 const (
-	BASIC = iota // Basic Markdown based on http://daringfireball.net/projects/markdown/syntax
-	GFM          // Github Flavored Markdown
+	BASIC EXT = iota // Basic Markdown based on http://daringfireball.net/projects/markdown/syntax
+	GFM              // Github Flavored Markdown
 )
 
 const (
@@ -371,6 +373,50 @@ func parseRule(p *blockParser) stateFn {
 
 }
 
+func parseQuote(p *blockParser) stateFn {
+	var (
+		r       rune
+		content []byte
+	)
+	for {
+		for r = p.next(); r != '\n' && r != eof; r = p.next() {
+		}
+
+		r1 := p.peek()
+		if r == '\n' {
+			if r1 == '>' {
+				continue
+			}
+
+			if r1 == '\n' || r1 == eof {
+				break
+			}
+		}
+		if r == eof {
+			break
+		}
+	}
+	if r == '\n' {
+		content = p.src[p.start:p.cur]
+	}
+	if r == eof {
+		content = p.src[p.start : p.cur+1]
+	}
+
+	lines := bytes.Split(content, []byte{'\n'})
+	for i := 0; i < len(lines); i++ {
+		lines[i] = lines[i][1:] // remove heading '>'
+	}
+	content = bytes.Join(lines, []byte{'\n'})
+	np := newParser(content)
+	quote := &QuoteBlock{}
+	for b := np.element(); b != nil; b = np.element() {
+		quote.subBlocks = append(quote.subBlocks, b)
+	}
+	p.emit(quote)
+	return parseBegin
+}
+
 // parseError is error handler when account for errors.
 func parseError(p *blockParser) stateFn {
 	return nil
@@ -395,6 +441,8 @@ func parseBegin(p *blockParser) stateFn {
 			return parseList
 		}
 		fallthrough
+	case r == '>':
+		return parseQuote
 	case r == '_' || r == '*' || r == '-':
 		r1 := p.peek(2)
 		if r1 == ' ' {
@@ -568,7 +616,9 @@ func parseSpan(p *spanParser) spanStateFn {
 	}
 }
 
-func Parse(src []byte) (content []byte) {
+func Parse(src []byte, ext EXT) (content []byte) {
+	if ext == BASIC {
+	}
 	p := newParser(src)
 	for block := p.element(); block != nil; block = p.element() {
 		content = append(content, block.Content()...)

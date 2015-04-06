@@ -42,6 +42,16 @@ func TestParagraph(t *testing.T) {
 
 }
 
+func TestQuote(t *testing.T) {
+	p := newParser([]byte(">quote"))
+	b := p.element().(*QuoteBlock)
+	for _, v := range b.subBlocks {
+		if string(v.Content()) != "quote" {
+			t.Fail()
+		}
+	}
+}
+
 func TestList(t *testing.T) {
 	p := newParser([]byte(`* item1
 * item2

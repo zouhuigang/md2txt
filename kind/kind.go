@@ -12,6 +12,7 @@ const (
 	Head Kind = iota
 	Paragraph
 	List
+	QuoteBlock
 	CodeBlock
 	Rule
 	// inline types
