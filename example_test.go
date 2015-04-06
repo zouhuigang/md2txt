@@ -11,7 +11,7 @@ func ExampleParse() {
 * item
 * item
 
-and this is a new paragraph.`))
+and this is a new paragraph.`), BASIC)
 
 	fmt.Printf("%s", ret)
 	// Output:
@@ -19,4 +19,25 @@ and this is a new paragraph.`))
 	// item
 	// item
 	// and this is a new paragraph.
+}
+
+func ExampleHead_H1() {
+	ret := Parse([]byte(`This is an H1
+=============`), BASIC)
+	fmt.Printf("%s", ret)
+	// Output:
+	// This is an H1
+}
+
+func ExampleHead_H2() {
+	ret := Parse([]byte(`## This is an H2`), BASIC)
+	fmt.Printf("%s", ret)
+	// Output:
+	// This is an H2
+}
+func ExampleQuote() {
+	ret := Parse([]byte(`> quote`), BASIC)
+	fmt.Printf("%s", ret)
+	// Output
+	// quote
 }
