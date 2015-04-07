@@ -1,8 +1,9 @@
 package md2txt
 
 import (
-	"github.com/ggaaooppeenngg/md2txt/kind"
 	"testing"
+
+	"github.com/ggaaooppeenngg/md2txt/kind"
 )
 
 func TestHead(t *testing.T) {
@@ -43,12 +44,13 @@ func TestParagraph(t *testing.T) {
 }
 
 func TestQuote(t *testing.T) {
-	p := newParser([]byte(">quote"))
+	p := newParser([]byte(">quote\n"))
 	b := p.element().(*QuoteBlock)
-	for _, v := range b.subBlocks {
-		if string(v.Content()) != "quote" {
-			t.Fail()
-		}
+	v := b.subBlocks[0]
+	q := `quote`
+	// 6 vs 5 ?
+	if string(v.Content()) != q {
+		t.Fail()
 	}
 }
 

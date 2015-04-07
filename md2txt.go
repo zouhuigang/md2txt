@@ -397,12 +397,11 @@ func parseQuote(p *blockParser) stateFn {
 		}
 	}
 	if r == '\n' {
-		content = p.src[p.start:p.cur]
+		content = p.src[p.start : p.cur-1]
 	}
 	if r == eof {
-		content = p.src[p.start : p.cur+1]
+		content = p.src[p.start:p.cur]
 	}
-
 	lines := bytes.Split(content, []byte{'\n'})
 	for i := 0; i < len(lines); i++ {
 		lines[i] = lines[i][1:] // remove heading '>'
@@ -441,19 +440,15 @@ func parseBegin(p *blockParser) stateFn {
 			return parseList
 		}
 		fallthrough
-	case r == '>':
-		return parseQuote
 	case r == '_' || r == '*' || r == '-':
 		r1 := p.peek(2)
-		if r1 == ' ' {
-			if p.forsee(r, ' ', r, ' ', r) {
-				return parseRule
-			}
-		}
 		if r1 == r && p.forsee(r, r, r) {
 			return parseRule
 		}
+		// TODO:handle exception.
 		fallthrough
+	case r == '>':
+		return parseQuote
 	case r == '\t' || (r == ' ' && p.forsee(' ', ' ', ' ')):
 		return parseCodeBlock
 	default:
