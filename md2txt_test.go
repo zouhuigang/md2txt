@@ -47,9 +47,21 @@ func TestQuote(t *testing.T) {
 	p := newParser([]byte(">quote\n"))
 	b := p.element().(*QuoteBlock)
 	v := b.subBlocks[0]
-	q := `quote`
-	// 6 vs 5 ?
-	if string(v.Content()) != q {
+	if string(v.Content()) != `quote` {
+		t.Fail()
+	}
+}
+func TestRecursiveQuote(t *testing.T) {
+	p := newParser([]byte(`>quote1
+>
+>>quote2
+>
+>quote1`))
+	b := p.element().(*QuoteBlock)
+	if string(b.Content()) != `quote1
+quote2
+quote1` {
+		t.Logf("%s", b.Content())
 		t.Fail()
 	}
 }
@@ -152,7 +164,6 @@ func TestEmpahsis(t *testing.T) {
 		t.Fail()
 	}
 	if string(sp2.src) != "unbelievable" {
-		println("!!!!")
 		t.Fail()
 	}
 }

@@ -57,7 +57,13 @@ type QuoteBlock struct {
 	subBlocks []Block
 }
 
-func (q QuoteBlock) Content() []byte { return q.content }
+func (q QuoteBlock) Content() []byte {
+	var contents [][]byte
+	for _, v := range q.subBlocks {
+		contents = append(contents, v.Content())
+	}
+	return bytes.Join(contents, []byte("\n"))
+}
 func (q QuoteBlock) Type() kind.Kind { return kind.QuoteBlock }
 
 // List represents element beginning with '*'|'+'|'-'|digit

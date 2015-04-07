@@ -6,6 +6,7 @@ package md2txt
 
 import (
 	"bytes"
+	//"fmt"
 	"math"
 	"regexp"
 	"unicode/utf8"
@@ -66,7 +67,7 @@ func (p *spanParser) emit(s Span) {
 	p.start = p.cur
 }
 
-// run is the main procedure of the state machine.
+// run is the main procedure of the state machine for span elements parsing,
 // when it runs into the end close the channel.
 func (p *spanParser) run() {
 	for p.state = parseSpan; p.state != nil; {
@@ -81,11 +82,18 @@ type blockParser struct {
 	blockChan chan Block
 }
 
+// element gets a block from the channel,
+// return nil if no more span elements.
 func (p *blockParser) element() Block { return <-p.blockChan }
+
+// emit emits a block element to the channel.
 func (p *blockParser) emit(b Block) {
 	p.blockChan <- b
 	p.start = p.cur
 }
+
+// run is the main procedure of the state machine for block elements parsing,
+// when it runs into the end close the channel.
 func (p *blockParser) run() {
 	for p.state = parseBegin; p.state != nil; {
 		p.state = p.state(p)
@@ -93,6 +101,7 @@ func (p *blockParser) run() {
 	close(p.blockChan)
 }
 
+// newParser returns a blockParser for parsing src.
 func newParser(src []byte) *blockParser {
 	p := &parser{
 		src: src,
@@ -102,6 +111,7 @@ func newParser(src []byte) *blockParser {
 	return bp
 }
 
+// newSpanParser returns a spanParser for parsing src.
 func newSpanParser(src []byte) *spanParser {
 	p := &parser{
 		src: src,
@@ -373,6 +383,7 @@ func parseRule(p *blockParser) stateFn {
 
 }
 
+// parseQuote is the parser for state of quote.
 func parseQuote(p *blockParser) stateFn {
 	var (
 		r       rune
@@ -398,6 +409,7 @@ func parseQuote(p *blockParser) stateFn {
 	}
 	if r == '\n' {
 		content = p.src[p.start : p.cur-1]
+		p.next()
 	}
 	if r == eof {
 		content = p.src[p.start:p.cur]
@@ -611,6 +623,7 @@ func parseSpan(p *spanParser) spanStateFn {
 	}
 }
 
+// Parse parses src with ext as extension,and returns pure text content.
 func Parse(src []byte, ext EXT) (content []byte) {
 	if ext == BASIC {
 	}
