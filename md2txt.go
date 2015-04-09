@@ -249,6 +249,7 @@ func parseHead(p *blockParser) stateFn {
 	// deliminate suffix and prefix '#'
 	content = regexp.MustCompile("#*\n$").ReplaceAll(content, []byte{})
 	content = regexp.MustCompile("^#+").ReplaceAll(content, []byte{})
+	content = bytes.TrimSpace(content)
 	head := &Head{level, content}
 	p.emit(head)
 	return parseBegin
@@ -299,8 +300,36 @@ emit:
 
 }
 
-// parseList parse lists with embedded sub elements.
-func parseList(p *blockParser) stateFn {
+// parseOrderlist parses order lists with embedded sub elements.
+func parseOrderList(p *blockParser) stateFn {
+	list := &List{}
+	start := p.start
+	for {
+		for r := p.next(); r != '\n' && r != eof; {
+			r = p.next()
+		}
+		content := p.src[start:p.cur]
+		content = regexp.MustCompile(`^\d+\. `).ReplaceAllLiteral(content, []byte{})
+		content = bytes.TrimRightFunc(content, func(r rune) bool {
+			if r == '\n' {
+				return true
+			}
+			return false
+		})
+		content = regexp.MustCompile("\n$").ReplaceAll(content, []byte{})
+		item := &Item{content: content}
+		list.items = append(list.items, item)
+
+		if !regexp.MustCompile(`^\d+\. `).Match(p.src[p.cur:]) {
+			p.emit(list)
+			return parseBegin
+		}
+		start = p.cur
+	}
+}
+
+// parseUnorderList parses unorder lists with embedded sub elements.
+func parseUnorderList(p *blockParser) stateFn {
 	marker := p.peek()
 	list := &List{}
 	start := p.start
@@ -314,15 +343,18 @@ func parseList(p *blockParser) stateFn {
 			escape = "\\"
 		}
 		content = regexp.MustCompile("^"+escape+string(marker)+" ").ReplaceAll(content, []byte{})
-		content = regexp.MustCompile("\n$").ReplaceAll(content, []byte{})
+		content = bytes.TrimRightFunc(content, func(r rune) bool {
+			if r == '\n' {
+				return true
+			}
+			return false
+		})
+
 		item := &Item{content: content}
 		list.items = append(list.items, item)
 		// if forsee Sprinf("%s ",marker),
-		// parse another list.
-		// TODO: use forsee to detect next item.
-		r := p.peek(1)
-		r1 := p.peek(2)
-		if r != marker && r1 != ' ' {
+		// parse another list item,else emit list.
+		if !p.forsee(marker, ' ') {
 			p.emit(list)
 			return parseBegin
 		}
@@ -447,7 +479,12 @@ func parseBegin(p *blockParser) stateFn {
 					return parseRule
 				}
 			}
-			return parseList
+			return parseUnorderList
+		}
+		fallthrough
+	case unicode.IsDigit(r):
+		if regexp.MustCompile(`\d+\. `).Match(p.src[p.cur:]) {
+			return parseOrderList
 		}
 		fallthrough
 	case r == '_' || r == '*' || r == '-':
@@ -461,6 +498,10 @@ func parseBegin(p *blockParser) stateFn {
 		return parseQuote
 	case r == '\t' || (r == ' ' && p.forsee(' ', ' ', ' ')):
 		return parseCodeBlock
+	case r == '\n':
+		p.next()
+		p.ignore()
+		return parseBegin
 	default:
 		return parseParagraph
 	case r == eof:
@@ -571,7 +612,7 @@ func parseCode(p *spanParser) spanStateFn {
 	if indexOfNewLine == -1 {
 		indexOfNewLine = len(p.src[p.cur:])
 	}
-	indexOfBacktick := bytes.LastIndex(p.src[p.cur:p.cur+indexOfNewLine], []byte{'\''})
+	indexOfBacktick := bytes.LastIndex(p.src[p.cur:p.cur+indexOfNewLine], []byte{'`'})
 
 	var content = make([]byte, indexOfBacktick+1)
 	copy(content, p.src[p.cur:p.cur+indexOfBacktick+1])
@@ -606,7 +647,7 @@ func parseSpan(p *spanParser) spanStateFn {
 				p.next()
 			}
 			fallthrough
-		case r == '\'':
+		case r == '`':
 			return parseCode
 		case r == '!' || r == '[':
 			return parseRef
@@ -622,12 +663,13 @@ func parseSpan(p *spanParser) spanStateFn {
 }
 
 // Parse parses src with ext as extension,and returns pure text content.
-func Parse(src []byte, ext EXT) (content []byte) {
+func Parse(src []byte, ext EXT) []byte {
 	if ext == BASIC {
 	}
 	p := newParser(src)
+	var contents [][]byte
 	for block := p.element(); block != nil; block = p.element() {
-		content = append(content, block.Content()...)
+		contents = append(contents, block.Content())
 	}
-	return content
+	return bytes.Join(contents, []byte("\n"))
 }
