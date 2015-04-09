@@ -64,6 +64,7 @@ func (q QuoteBlock) Content() []byte {
 	}
 	return bytes.Join(contents, []byte("\n"))
 }
+
 func (q QuoteBlock) Type() kind.Kind { return kind.QuoteBlock }
 
 // List represents element beginning with '*'|'+'|'-'|digit

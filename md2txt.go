@@ -9,6 +9,7 @@ import (
 	//"fmt"
 	"math"
 	"regexp"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/ggaaooppeenngg/md2txt/kind"
@@ -394,14 +395,8 @@ func parseQuote(p *blockParser) stateFn {
 		}
 
 		r1 := p.peek()
-		if r == '\n' {
-			if r1 == '>' {
-				continue
-			}
-
-			if r1 == '\n' || r1 == eof {
-				break
-			}
+		if r == '\n' && (r1 == '\n' || r1 == eof) {
+			break
 		}
 		if r == eof {
 			break
@@ -416,7 +411,10 @@ func parseQuote(p *blockParser) stateFn {
 	}
 	lines := bytes.Split(content, []byte{'\n'})
 	for i := 0; i < len(lines); i++ {
-		lines[i] = lines[i][1:] // remove heading '>'
+		if lines[i][0] == '>' {
+			lines[i] = lines[i][1:]
+		}
+		lines[i] = bytes.TrimLeftFunc(lines[i], unicode.IsSpace) // remove heading '>' and spaces
 	}
 	content = bytes.Join(lines, []byte{'\n'})
 	np := newParser(content)

@@ -35,6 +35,7 @@ func ExampleHead_H2() {
 	// Output:
 	// This is an H2
 }
+
 func ExampleQuote() {
 	ret := Parse([]byte(`> quote`), BASIC)
 	fmt.Printf("%s", ret)

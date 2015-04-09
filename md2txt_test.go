@@ -51,6 +51,20 @@ func TestQuote(t *testing.T) {
 		t.Fail()
 	}
 }
+func TestQuoteOneLine(t *testing.T) {
+	p := newParser([]byte(`> This is a blockquote with two paragraphs. Lorem ipsum dolor sit amet,
+consectetuer adipiscing elit. Aliquam hendrerit mi posuere lectus.
+Vestibulum enim wisi, viverra nec, fringilla in, laoreet vitae, risus.
+`))
+	for b := p.element(); b != nil; b = p.element() {
+		if string(b.Content()) != `This is a blockquote with two paragraphs. Lorem ipsum dolor sit amet,
+consectetuer adipiscing elit. Aliquam hendrerit mi posuere lectus.
+Vestibulum enim wisi, viverra nec, fringilla in, laoreet vitae, risus.` {
+			t.Fail()
+
+		}
+	}
+}
 func TestRecursiveQuote(t *testing.T) {
 	p := newParser([]byte(`>quote1
 >
