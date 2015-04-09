@@ -6,7 +6,6 @@ package md2txt
 
 import (
 	"bytes"
-	//"fmt"
 	"math"
 	"regexp"
 	"unicode"
@@ -292,9 +291,8 @@ func parseParagraph(p *blockParser) stateFn {
 	}
 emit:
 	content := p.src[p.start:p.cur]
-
 	content = regexp.MustCompile("\n{0,2}$").ReplaceAll(content, []byte{})
-	paragraph := &Paragraph{content}
+	paragraph := &Paragraph{content: content}
 	p.emit(paragraph)
 	return parseBegin
 
@@ -309,7 +307,7 @@ func parseOrderList(p *blockParser) stateFn {
 			r = p.next()
 		}
 		content := p.src[start:p.cur]
-		content = regexp.MustCompile(`^\d+\. `).ReplaceAllLiteral(content, []byte{})
+		content = regexp.MustCompile(`^\d+\.  `).ReplaceAllLiteral(content, []byte{})
 		content = bytes.TrimRightFunc(content, func(r rune) bool {
 			if r == '\n' {
 				return true
@@ -320,7 +318,7 @@ func parseOrderList(p *blockParser) stateFn {
 		item := &Item{content: content}
 		list.items = append(list.items, item)
 
-		if !regexp.MustCompile(`^\d+\. `).Match(p.src[p.cur:]) {
+		if !regexp.MustCompile(`^\d+\.  `).Match(p.src[p.cur:]) {
 			p.emit(list)
 			return parseBegin
 		}
@@ -342,7 +340,7 @@ func parseUnorderList(p *blockParser) stateFn {
 		if marker == '+' || marker == '*' {
 			escape = "\\"
 		}
-		content = regexp.MustCompile("^"+escape+string(marker)+" ").ReplaceAll(content, []byte{})
+		content = regexp.MustCompile("^"+escape+string(marker)+"   ").ReplaceAll(content, []byte{})
 		content = bytes.TrimRightFunc(content, func(r rune) bool {
 			if r == '\n' {
 				return true
@@ -354,7 +352,7 @@ func parseUnorderList(p *blockParser) stateFn {
 		list.items = append(list.items, item)
 		// if forsee Sprinf("%s ",marker),
 		// parse another list item,else emit list.
-		if !p.forsee(marker, ' ') {
+		if !p.forsee(marker, ' ', ' ', ' ') {
 			p.emit(list)
 			return parseBegin
 		}
@@ -479,21 +477,25 @@ func parseBegin(p *blockParser) stateFn {
 					return parseRule
 				}
 			}
-			return parseUnorderList
+			if p.forsee(r, ' ', ' ', ' ') {
+				return parseUnorderList
+			}
 		}
-		fallthrough
-	case unicode.IsDigit(r):
-		if regexp.MustCompile(`\d+\. `).Match(p.src[p.cur:]) {
-			return parseOrderList
-		}
-		fallthrough
-	case r == '_' || r == '*' || r == '-':
-		r1 := p.peek(2)
 		if r1 == r && p.forsee(r, r, r) {
 			return parseRule
 		}
-		// TODO:handle exception.
-		fallthrough
+		return parseParagraph
+	case r == '_':
+		r1 := p.peek(2)
+		if r1 == r && (p.forsee(r, r, r) || p.forsee(r, ' ', r, ' ', r)) {
+			return parseRule
+		}
+		return parseParagraph
+	case unicode.IsDigit(r):
+		if regexp.MustCompile(`\d+\.  `).Match(p.src[p.cur:]) {
+			return parseOrderList
+		}
+		return parseParagraph
 	case r == '>':
 		return parseQuote
 	case r == '\t' || (r == ' ' && p.forsee(' ', ' ', ' ')):
@@ -502,12 +504,11 @@ func parseBegin(p *blockParser) stateFn {
 		p.next()
 		p.ignore()
 		return parseBegin
-	default:
-		return parseParagraph
 	case r == eof:
 		return nil
+	default:
+		return parseParagraph
 	}
-
 }
 
 // -----------span parsing----------
@@ -634,6 +635,15 @@ func isEscapeRune(r rune) bool {
 	return false
 }
 
+func findRune(src []byte, r byte) int {
+	i := bytes.IndexByte(src, r)
+	if i == -1 {
+		i = 1 << 32 // big enough as eof
+	}
+	return i
+
+}
+
 // span main parsing.
 func parseSpan(p *spanParser) spanStateFn {
 	for {
@@ -646,13 +656,17 @@ func parseSpan(p *spanParser) spanStateFn {
 				p.merge()
 				p.next()
 			}
-			fallthrough
+			return parseSpan
 		case r == '`':
 			return parseCode
 		case r == '!' || r == '[':
 			return parseRef
 		case r == '*' || r == '_':
-			return parseEmphasis
+			if findRune(p.src[p.cur+1:], byte(r)) < findRune(p.src[p.cur+1:], '\n') {
+				return parseEmphasis
+			}
+			p.next()
+			p.ignore()
 		case r == eof:
 			return nil
 		default:

@@ -3,7 +3,10 @@ Type definitions for markdown elements.
 */
 package kind
 
+//go:generate stringer -type=Kind
 type Kind int
+
+//go:generate stringer -type=ElementType
 type ElementType int
 
 // specific types
@@ -25,6 +28,6 @@ const (
 
 // element types
 const (
-	Block = iota
+	Block ElementType = iota
 	Inline
 )

@@ -7,15 +7,16 @@ import (
 func ExampleParse() {
 	ret := Parse([]byte(`This is a list:
 
-* item
-* item
-* item
+*   item
+*   item
+*   item
 
 and this is a new paragraph.`), BASIC)
 
 	fmt.Printf("%s", ret)
 	// Output:
-	// This is a list:item
+	// This is a list:
+	// item
 	// item
 	// item
 	// and this is a new paragraph.

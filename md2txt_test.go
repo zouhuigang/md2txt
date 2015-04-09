@@ -51,6 +51,7 @@ func TestQuote(t *testing.T) {
 		t.Fail()
 	}
 }
+
 func TestQuoteOneLine(t *testing.T) {
 	p := newParser([]byte(`> This is a blockquote with two paragraphs. Lorem ipsum dolor sit amet,
 consectetuer adipiscing elit. Aliquam hendrerit mi posuere lectus.
@@ -65,6 +66,7 @@ Vestibulum enim wisi, viverra nec, fringilla in, laoreet vitae, risus.` {
 		}
 	}
 }
+
 func TestRecursiveQuote(t *testing.T) {
 	p := newParser([]byte(`>quote1
 >
@@ -80,10 +82,32 @@ quote1` {
 	}
 }
 
-func TestList(t *testing.T) {
-	p := newParser([]byte(`* item1
-* item2
-* item3`))
+func TestQuoteContainingOtherBlocks(t *testing.T) {
+	p := newParser([]byte(`> ## This is a header.
+> 
+> 1.  This is the first list item.
+> 2.  This is the second list item.
+> 
+> Here's some example code:
+> 
+>     return shell_exec("echo $input | $markdown_script");`))
+	e := p.element().(*QuoteBlock)
+	for range e.subBlocks {
+		//println(b.Type().String())
+		//println(string(b.Content()))
+	}
+	/*
+		for b := p.element(); b != nil; b = p.element() {
+			println(b.Type().String())
+			println(string(b.Content()))
+		}
+	*/
+}
+
+func TestOrderList(t *testing.T) {
+	p := newParser([]byte(`1.  item1
+2.  item2
+3.  item3`))
 	e := p.element()
 	if e == nil {
 		t.Fail()
@@ -94,26 +118,59 @@ item3` {
 		t.Logf("%s", e.Content())
 		t.Fail()
 	}
-	if e.Type() != kind.List {
-		t.Fail()
-	}
-	p1 := newParser([]byte(`+ item1
-+ item2
-+ item3`))
-	e1 := p1.element()
-	if e1 == nil {
-		t.Fail()
-	}
-	if string(e1.Content()) != `item1
-item2
-item3` {
-		t.Logf("%s", e1.Content())
-		t.Fail()
-	}
-	if e1.Type() != kind.List {
+}
+
+func TestUnorderList(t *testing.T) {
+	/*
+			p := newParser([]byte(`*   item1
+		*   item2
+		*   item3`))
+			e := p.element()
+			if e == nil {
+				t.Fail()
+			}
+			if string(e.Content()) != `item1
+		item2
+		item3` {
+				t.Logf("%s", e.Content())
+				t.Fail()
+			}
+			if e.Type() != kind.List {
+				t.Fail()
+			}
+
+			p1 := newParser([]byte(`+   item1
+		+   item2
+		+   item3`))
+			e1 := p1.element()
+			if e1 == nil {
+				t.Fail()
+			}
+			if string(e1.Content()) != `item1
+		item2
+		item3` {
+				t.Logf("%s", e1.Content())
+				t.Fail()
+			}
+			if e1.Type() != kind.List {
+				t.Fail()
+			}
+	*/
+	p2 := newParser([]byte(`* item
+* item
+* item`))
+
+	e2 := p2.element()
+	if e2 == nil {
 		t.Fail()
 	}
 
+	if string(e2.Content()) != `* item
+* item
+* item` {
+		t.Logf("%s", e2.Content())
+		t.Fail()
+	}
 }
 
 func TestCodeBlock(t *testing.T) {
@@ -140,7 +197,7 @@ func TestHorizontalRules(t *testing.T) {
 	}
 }
 
-func TestEmpahsis(t *testing.T) {
+func TestEmphasis(t *testing.T) {
 	sp := newSpanParser([]byte("*emphasis*"))
 	s := sp.element()
 	if s.Type() != kind.Emphasis {
@@ -164,7 +221,6 @@ func TestEmpahsis(t *testing.T) {
 	if s1.StartPos() != 0 {
 		t.Fail()
 	}
-
 	sp2 := newSpanParser([]byte("un*frigging*believable"))
 	s2 := sp2.element()
 
@@ -182,7 +238,7 @@ func TestEmpahsis(t *testing.T) {
 	}
 }
 func TestCode(t *testing.T) {
-	sp := newSpanParser([]byte("It is 'code'"))
+	sp := newSpanParser([]byte("It is `code`"))
 	s := sp.element()
 	if s.Type() != kind.Code {
 		t.Fail()
