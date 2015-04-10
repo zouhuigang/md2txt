@@ -40,6 +40,21 @@ func ExampleHead_H2() {
 func ExampleQuote() {
 	ret := Parse([]byte(`> quote`), BASIC)
 	fmt.Printf("%s", ret)
-	// Output
+	// Output:
 	// quote
+}
+
+func ExampleList() {
+	ret := Parse([]byte(`*   Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+    Aliquam hendrerit mi posuere lectus. Vestibulum enim wisi,
+    viverra nec, fringilla in, laoreet vitae, risus.
+*   Donec sit amet nisl. Aliquam semper ipsum sit amet velit.
+    Suspendisse id sem consectetuer libero luctus adipiscing.`), BASIC)
+	fmt.Printf("%s", ret)
+	// Output:
+	// Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+	// Aliquam hendrerit mi posuere lectus. Vestibulum enim wisi,
+	// viverra nec, fringilla in, laoreet vitae, risus.
+	// Donec sit amet nisl. Aliquam semper ipsum sit amet velit.
+	// Suspendisse id sem consectetuer libero luctus adipiscing.
 }

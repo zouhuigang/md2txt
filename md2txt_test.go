@@ -100,6 +100,26 @@ func TestQuoteContainingOtherBlocks(t *testing.T) {
 	}
 }
 
+func TestList(t *testing.T) {
+	p := newParser([]byte(`*   Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+    Aliquam hendrerit mi posuere lectus. Vestibulum enim wisi,
+    viverra nec, fringilla in, laoreet vitae, risus.
+*   Donec sit amet nisl. Aliquam semper ipsum sit amet velit.
+    Suspendisse id sem consectetuer libero luctus adipiscing.`))
+	e := p.element()
+	if e == nil {
+		t.Fail()
+	}
+	if string(e.Content()) != `Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+Aliquam hendrerit mi posuere lectus. Vestibulum enim wisi,
+viverra nec, fringilla in, laoreet vitae, risus.
+Donec sit amet nisl. Aliquam semper ipsum sit amet velit.
+Suspendisse id sem consectetuer libero luctus adipiscing.` {
+		t.Logf("%s", e.Content())
+		t.Fail()
+	}
+}
+
 func TestOrderList(t *testing.T) {
 	p := newParser([]byte(`1.  item1
 2.  item2

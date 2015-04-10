@@ -307,7 +307,24 @@ func parseOrderList(p *blockParser) stateFn {
 	list := &List{}
 	start := p.start
 	for {
-		for r := p.next(); r != '\n' && r != eof; {
+		for r := p.next(); r != eof; {
+			if r == '\n' {
+				r1 := p.peek()
+				if r1 == '\n' ||
+					r1 == eof ||
+					regexp.MustCompile(`^\d+\.  `).Match(p.src[p.cur:]) {
+					break
+				}
+				if p.forsee(' ', ' ', ' ', ' ') {
+					p.src = append(p.src[:p.cur], p.src[p.cur+4:]...)
+					continue
+				}
+				if p.forsee('\t') {
+					p.src = append(p.src[:p.cur], p.src[p.cur+1:]...)
+					continue
+				}
+
+			}
 			r = p.next()
 		}
 		content := p.src[start:p.cur]
@@ -333,17 +350,33 @@ func parseOrderList(p *blockParser) stateFn {
 // parseUnorderList parses unorder lists with embedded sub elements.
 func parseUnorderList(p *blockParser) stateFn {
 	marker := p.peek()
+	escape := ""
+	if marker == '+' || marker == '*' {
+		escape = "\\"
+	}
 	list := &List{}
 	start := p.start
 	for {
-		for r := p.next(); r != '\n' && r != eof; {
+		for r := p.next(); r != eof; {
+			if r == '\n' {
+				r1 := p.peek()
+				if r1 == '\n' ||
+					r1 == eof ||
+					regexp.MustCompile("^"+escape+string(marker)+"   ").Match(p.src[p.cur:]) {
+					break
+				}
+				if p.forsee(' ', ' ', ' ', ' ') {
+					p.src = append(p.src[:p.cur], p.src[p.cur+4:]...)
+					continue
+				}
+				if p.forsee('\t') {
+					p.src = append(p.src[:p.cur], p.src[p.cur+1:]...)
+					continue
+				}
+			}
 			r = p.next()
 		}
 		content := p.src[start:p.cur]
-		var escape = ""
-		if marker == '+' || marker == '*' {
-			escape = "\\"
-		}
 		content = regexp.MustCompile("^"+escape+string(marker)+"   ").ReplaceAll(content, []byte{})
 		content = bytes.TrimRightFunc(content, func(r rune) bool {
 			if r == '\n' {
