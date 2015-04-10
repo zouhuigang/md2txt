@@ -245,9 +245,13 @@ func parseHead(p *blockParser) stateFn {
 		r = p.next()
 	}
 	content := p.src[p.start:p.cur]
-	// deliminate suffix and prefix '#'
-	content = regexp.MustCompile("#*\n$").ReplaceAll(content, []byte{})
-	content = regexp.MustCompile("^#+").ReplaceAll(content, []byte{})
+	// deliminate headiing and tailing shaps or spaces.
+	content = bytes.TrimFunc(content, func(r rune) bool {
+		if r == '#' || r == ' ' {
+			return true
+		}
+		return false
+	})
 	content = bytes.TrimSpace(content)
 	head := &Head{level, content}
 	p.emit(head)
@@ -366,16 +370,22 @@ func parseCodeBlock(p *blockParser) stateFn {
 	start := p.start
 	var marker string
 	r := p.peek()
+	marker = "\t"
 	if r == ' ' {
 		marker = "    " // 4 spaces
 	}
-	marker = "\t"
 	for {
 		for r := p.next(); r != '\n' && r != eof; {
 			r = p.next()
 		}
 		content := p.src[start:p.cur]
 		content = regexp.MustCompile("^"+marker).ReplaceAll(content, []byte{})
+		content = bytes.TrimRightFunc(content, func(r rune) bool {
+			if r == '\n' {
+				return true
+			}
+			return false
+		})
 		codeBlock.content = append(codeBlock.content, content...)
 		if !p.forsee(runes(marker)...) {
 			break
@@ -441,10 +451,13 @@ func parseQuote(p *blockParser) stateFn {
 	}
 	lines := bytes.Split(content, []byte{'\n'})
 	for i := 0; i < len(lines); i++ {
-		if lines[i][0] == '>' {
+		// remove heading '>' and space.
+		if len(lines[i]) > 0 && lines[i][0] == '>' {
 			lines[i] = lines[i][1:]
+			if len(lines[i]) > 0 && lines[i][0] == ' ' {
+				lines[i] = lines[i][1:]
+			}
 		}
-		lines[i] = bytes.TrimLeftFunc(lines[i], unicode.IsSpace) // remove heading '>' and spaces
 	}
 	content = bytes.Join(lines, []byte{'\n'})
 	np := newParser(content)

@@ -92,16 +92,12 @@ func TestQuoteContainingOtherBlocks(t *testing.T) {
 > 
 >     return shell_exec("echo $input | $markdown_script");`))
 	e := p.element().(*QuoteBlock)
-	for range e.subBlocks {
-		//println(b.Type().String())
-		//println(string(b.Content()))
-	}
-	/*
-		for b := p.element(); b != nil; b = p.element() {
-			println(b.Type().String())
-			println(string(b.Content()))
+	var types = []kind.Kind{kind.Head, kind.List, kind.Paragraph, kind.CodeBlock}
+	for i := 0; i < len(e.subBlocks); i++ {
+		if e.subBlocks[i].Type() != types[i] {
+			t.Fail()
 		}
-	*/
+	}
 }
 
 func TestOrderList(t *testing.T) {
@@ -121,41 +117,39 @@ item3` {
 }
 
 func TestUnorderList(t *testing.T) {
-	/*
-			p := newParser([]byte(`*   item1
-		*   item2
-		*   item3`))
-			e := p.element()
-			if e == nil {
-				t.Fail()
-			}
-			if string(e.Content()) != `item1
-		item2
-		item3` {
-				t.Logf("%s", e.Content())
-				t.Fail()
-			}
-			if e.Type() != kind.List {
-				t.Fail()
-			}
+	p := newParser([]byte(`*   item1
+*   item2
+*   item3`))
+	e := p.element()
+	if e == nil {
+		t.Fail()
+	}
+	if string(e.Content()) != `item1
+item2
+item3` {
+		t.Logf("%s", e.Content())
+		t.Fail()
+	}
+	if e.Type() != kind.List {
+		t.Fail()
+	}
 
-			p1 := newParser([]byte(`+   item1
-		+   item2
-		+   item3`))
-			e1 := p1.element()
-			if e1 == nil {
-				t.Fail()
-			}
-			if string(e1.Content()) != `item1
-		item2
-		item3` {
-				t.Logf("%s", e1.Content())
-				t.Fail()
-			}
-			if e1.Type() != kind.List {
-				t.Fail()
-			}
-	*/
+	p1 := newParser([]byte(`+   item1
++   item2
++   item3`))
+	e1 := p1.element()
+	if e1 == nil {
+		t.Fail()
+	}
+	if string(e1.Content()) != `item1
+item2
+item3` {
+		t.Logf("%s", e1.Content())
+		t.Fail()
+	}
+	if e1.Type() != kind.List {
+		t.Fail()
+	}
 	p2 := newParser([]byte(`* item
 * item
 * item`))
@@ -174,11 +168,9 @@ func TestUnorderList(t *testing.T) {
 }
 
 func TestCodeBlock(t *testing.T) {
-	p := newParser([]byte(`	codeblock1
-	codeblock2`))
+	p := newParser([]byte(`	codeblock1`))
 	e := p.element()
-	if string(e.Content()) != `codeblock1
-codeblock2` {
+	if string(e.Content()) != `codeblock1` {
 		t.Logf("'%s'", e.Content())
 		t.Fail()
 	}
