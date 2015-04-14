@@ -82,6 +82,33 @@ quote1` {
 	}
 }
 
+func TestItemSubBlocks(t *testing.T) {
+	bs1 := parseItemBlocks([]byte(`    subBlocks
+in lazy mode
+`))
+	for _, b := range bs1 {
+		if string(b.Content()) != `subBlocks
+in lazy mode` {
+			t.Fail()
+		}
+		if b.Type() != kind.Paragraph {
+			t.Fail()
+		}
+	}
+
+	bs2 := parseItemBlocks([]byte(`    > subBlocks
+	> with heading indents`))
+	for _, b := range bs2 {
+		if string(b.Content()) != `subBlocks
+with heading indents` {
+			t.Fail()
+		}
+		if b.Type() != kind.QuoteBlock {
+			t.Fail()
+		}
+	}
+}
+
 func TestQuoteContainingOtherBlocks(t *testing.T) {
 	p := newParser([]byte(`> ## This is a header.
 > 

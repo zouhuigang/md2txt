@@ -309,12 +309,16 @@ func parseOrderList(p *blockParser) stateFn {
 	for {
 		for r := p.next(); r != eof; {
 			if r == '\n' {
+
 				r1 := p.peek()
+
 				if r1 == '\n' ||
 					r1 == eof ||
 					regexp.MustCompile(`^\d+\.  `).Match(p.src[p.cur:]) {
 					break
 				}
+
+				// judge if item has mutiple lines.
 				if p.forsee(' ', ' ', ' ', ' ') {
 					p.src = append(p.src[:p.cur], p.src[p.cur+4:]...)
 					continue
@@ -347,6 +351,45 @@ func parseOrderList(p *blockParser) stateFn {
 	}
 }
 
+// parse sub blocks under the list item.
+func parseItemBlocks(src []byte) []Block {
+	// TODO: support lazy mode.
+	endOfABlock := bytes.LastIndex(src, []byte("\n\n"))
+	// check if face the end of last line or file.
+	if endOfABlock == -1 {
+		if bytes.LastIndex(src, []byte{'\n'}) == len(src)-1 {
+			endOfABlock = len(src) - 1
+		} else {
+			endOfABlock = len(src)
+		}
+	}
+	var blocks []Block
+	blockBytes := bytes.Split(src, []byte("\n\n"))
+
+	for _, b := range blockBytes {
+		i := bytes.IndexByte(b, '\n')
+		if i < len(b)-1 && bytes.Equal(b[i+1:i+2], []byte("\t")) ||
+			i < len(b)-4 && bytes.Equal(b[i+1:i+5], []byte("    ")) {
+			// not lazy mode
+			// replace every line's heading indents.
+			b = regexp.MustCompile(`(?m)(^    |\t)`).ReplaceAll(b, []byte{})
+		} else {
+			if b[0] == ' ' {
+				b = b[4:]
+			}
+			if b[0] == '\t' {
+				b = b[1:]
+			}
+		}
+		p := newParser(b)
+		e := p.element()
+		if e != nil {
+			blocks = append(blocks, e)
+		}
+	}
+	return blocks
+}
+
 // parseUnorderList parses unorder lists with embedded sub elements.
 func parseUnorderList(p *blockParser) stateFn {
 	marker := p.peek()
@@ -360,11 +403,12 @@ func parseUnorderList(p *blockParser) stateFn {
 		for r := p.next(); r != eof; {
 			if r == '\n' {
 				r1 := p.peek()
-				if r1 == '\n' ||
-					r1 == eof ||
+				if r1 == eof ||
 					regexp.MustCompile("^"+escape+string(marker)+"   ").Match(p.src[p.cur:]) {
 					break
 				}
+
+				// judge if item has mutiple lines.
 				if p.forsee(' ', ' ', ' ', ' ') {
 					p.src = append(p.src[:p.cur], p.src[p.cur+4:]...)
 					continue
@@ -373,6 +417,17 @@ func parseUnorderList(p *blockParser) stateFn {
 					p.src = append(p.src[:p.cur], p.src[p.cur+1:]...)
 					continue
 				}
+
+				if r1 == '\n' {
+					if p.forsee('\n', ' ', ' ', ' ', ' ') {
+						p.next()
+					}
+					if p.forsee('\n', '\t') {
+						p.next()
+					}
+					break
+				}
+
 			}
 			r = p.next()
 		}
