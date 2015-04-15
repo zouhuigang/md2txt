@@ -81,6 +81,9 @@ func (l List) Content() []byte {
 	var output [][]byte
 	for _, v := range l.items {
 		output = append(output, v.content)
+		for _, b := range v.subBlocks {
+			output = append(output, b.Content())
+		}
 	}
 	return bytes.Join(output, []byte("\n"))
 }

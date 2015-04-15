@@ -83,27 +83,38 @@ quote1` {
 }
 
 func TestItemSubBlocks(t *testing.T) {
-	bs1 := parseItemBlocks([]byte(`    subBlocks
+	bs1, n := parseItemBlocks([]byte(`    subBlocks
 in lazy mode
 `))
 	for _, b := range bs1 {
 		if string(b.Content()) != `subBlocks
 in lazy mode` {
+			t.Logf("%s", b.Content())
 			t.Fail()
 		}
 		if b.Type() != kind.Paragraph {
 			t.Fail()
 		}
+		if n != 27 {
+			t.Logf("%d", n)
+			t.Fail()
+		}
 	}
 
-	bs2 := parseItemBlocks([]byte(`    > subBlocks
-	> with heading indents`))
+	bs2, n := parseItemBlocks([]byte(`    > subBlocks
+	> with heading indents
+
+`))
 	for _, b := range bs2 {
 		if string(b.Content()) != `subBlocks
 with heading indents` {
 			t.Fail()
 		}
 		if b.Type() != kind.QuoteBlock {
+			t.Fail()
+		}
+		if n != 41 {
+			t.Logf("%d", n)
 			t.Fail()
 		}
 	}
@@ -214,6 +225,30 @@ item3` {
 	}
 }
 
+func TestListWithSubItems(t *testing.T) {
+	p := newParser([]byte(`1.  This is a list item with two paragraphs. Lorem ipsum dolor
+    sit amet, consectetuer adipiscing elit. Aliquam hendrerit
+    mi posuere lectus.
+
+    Vestibulum enim wisi, viverra nec, fringilla in, laoreet
+    vitae, risus. Donec sit amet nisl. Aliquam semper ipsum
+    sit amet velit.
+
+2.  Suspendisse id sem consectetuer libero luctus adipiscing.`))
+	e1 := p.element()
+	if string(e1.Content()) != `This is a list item with two paragraphs. Lorem ipsum dolor
+sit amet, consectetuer adipiscing elit. Aliquam hendrerit
+mi posuere lectus.
+Vestibulum enim wisi, viverra nec, fringilla in, laoreet
+vitae, risus. Donec sit amet nisl. Aliquam semper ipsum
+sit amet velit.
+Suspendisse id sem consectetuer libero luctus adipiscing.` {
+		t.Logf("%s", e1.Content())
+		t.Fail()
+
+	}
+
+}
 func TestCodeBlock(t *testing.T) {
 	p := newParser([]byte(`	codeblock1`))
 	e := p.element()

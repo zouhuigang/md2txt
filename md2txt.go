@@ -18,7 +18,7 @@ type EXT int
 
 const (
 	BASIC EXT = iota // Basic Markdown based on http://daringfireball.net/projects/markdown/syntax
-	GFM              // Github Flavored Markdown
+	//GFM              // Github Flavored Markdown
 )
 
 const (
@@ -307,14 +307,27 @@ func parseOrderList(p *blockParser) stateFn {
 	list := &List{}
 	start := p.start
 	for {
+		var (
+			blocks []Block
+			n      int
+		)
 		for r := p.next(); r != eof; {
 			if r == '\n' {
 
 				r1 := p.peek()
 
-				if r1 == '\n' ||
-					r1 == eof ||
+				if r1 == eof ||
 					regexp.MustCompile(`^\d+\.  `).Match(p.src[p.cur:]) {
+					break
+				}
+
+				if p.forsee('\n', ' ', ' ', ' ', ' ') || p.forsee('\n', '\t') {
+					blocks, n = parseItemBlocks(p.src[p.cur:])
+					p.src = append(p.src[:p.cur], p.src[p.cur+n:]...)
+					break
+				}
+
+				if r1 == '\n' {
 					break
 				}
 
@@ -341,8 +354,8 @@ func parseOrderList(p *blockParser) stateFn {
 		})
 		content = regexp.MustCompile("\n$").ReplaceAll(content, []byte{})
 		item := &Item{content: content}
+		item.subBlocks = blocks
 		list.items = append(list.items, item)
-
 		if !regexp.MustCompile(`^\d+\.  `).Match(p.src[p.cur:]) {
 			p.emit(list)
 			return parseBegin
@@ -352,19 +365,24 @@ func parseOrderList(p *blockParser) stateFn {
 }
 
 // parse sub blocks under the list item.
-func parseItemBlocks(src []byte) []Block {
+func parseItemBlocks(src []byte) ([]Block, int) {
 	// TODO: support lazy mode.
-	endOfABlock := bytes.LastIndex(src, []byte("\n\n"))
+	var count int
+	end := bytes.LastIndex(src, []byte("\n\n"))
 	// check if face the end of last line or file.
-	if endOfABlock == -1 {
+	if end == -1 {
 		if bytes.LastIndex(src, []byte{'\n'}) == len(src)-1 {
-			endOfABlock = len(src) - 1
+			end = len(src) - 1
 		} else {
-			endOfABlock = len(src)
+			end = len(src)
 		}
+		count = len(src)
+	} else {
+		count = end + 2
 	}
+
 	var blocks []Block
-	blockBytes := bytes.Split(src, []byte("\n\n"))
+	blockBytes := bytes.Split(src[:end], []byte("\n\n"))
 
 	for _, b := range blockBytes {
 		i := bytes.IndexByte(b, '\n')
@@ -387,7 +405,7 @@ func parseItemBlocks(src []byte) []Block {
 			blocks = append(blocks, e)
 		}
 	}
-	return blocks
+	return blocks, count
 }
 
 // parseUnorderList parses unorder lists with embedded sub elements.
@@ -403,6 +421,7 @@ func parseUnorderList(p *blockParser) stateFn {
 		for r := p.next(); r != eof; {
 			if r == '\n' {
 				r1 := p.peek()
+
 				if r1 == eof ||
 					regexp.MustCompile("^"+escape+string(marker)+"   ").Match(p.src[p.cur:]) {
 					break
@@ -418,6 +437,7 @@ func parseUnorderList(p *blockParser) stateFn {
 					continue
 				}
 
+				// ? what's this for?
 				if r1 == '\n' {
 					if p.forsee('\n', ' ', ' ', ' ', ' ') {
 						p.next()
@@ -751,7 +771,8 @@ func parseSpan(p *spanParser) spanStateFn {
 		switch r := p.peek(); {
 		case r == '\\':
 			r1 := p.peek(2)
-			// escape runes
+			// merge escape rune into single rune.
+			// e.g. \* to *
 			if isEscapeRune(r1) {
 				p.next()
 				p.merge()
