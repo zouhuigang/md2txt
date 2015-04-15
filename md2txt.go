@@ -303,7 +303,7 @@ emit:
 }
 
 // parseOrderlist parses order lists with embedded sub elements.
-func parseOrderList(p *blockParser) stateFn {
+func parseList(p *blockParser, reg *regexp.Regexp) stateFn {
 	list := &List{}
 	start := p.start
 	for {
@@ -313,20 +313,17 @@ func parseOrderList(p *blockParser) stateFn {
 		)
 		for r := p.next(); r != eof; {
 			if r == '\n' {
-
 				r1 := p.peek()
 
 				if r1 == eof ||
-					regexp.MustCompile(`^\d+\.  `).Match(p.src[p.cur:]) {
+					reg.Match(p.src[p.cur:]) {
 					break
 				}
-
 				if p.forsee('\n', ' ', ' ', ' ', ' ') || p.forsee('\n', '\t') {
 					blocks, n = parseItemBlocks(p.src[p.cur:])
 					p.src = append(p.src[:p.cur], p.src[p.cur+n:]...)
 					break
 				}
-
 				if r1 == '\n' {
 					break
 				}
@@ -345,23 +342,26 @@ func parseOrderList(p *blockParser) stateFn {
 			r = p.next()
 		}
 		content := p.src[start:p.cur]
-		content = regexp.MustCompile(`^\d+\.  `).ReplaceAllLiteral(content, []byte{})
+		content = reg.ReplaceAll(content, []byte{})
 		content = bytes.TrimRightFunc(content, func(r rune) bool {
 			if r == '\n' {
 				return true
 			}
 			return false
 		})
-		content = regexp.MustCompile("\n$").ReplaceAll(content, []byte{})
+
 		item := &Item{content: content}
 		item.subBlocks = blocks
 		list.items = append(list.items, item)
-		if !regexp.MustCompile(`^\d+\.  `).Match(p.src[p.cur:]) {
+		// if forsee Sprinf("%s ",marker),
+		// parse another list item,else emit list.
+		if !reg.Match(p.src[p.cur:]) {
 			p.emit(list)
 			return parseBegin
 		}
 		start = p.cur
 	}
+
 }
 
 // parse sub blocks under the list item.
@@ -415,61 +415,12 @@ func parseUnorderList(p *blockParser) stateFn {
 	if marker == '+' || marker == '*' {
 		escape = "\\"
 	}
-	list := &List{}
-	start := p.start
-	for {
-		for r := p.next(); r != eof; {
-			if r == '\n' {
-				r1 := p.peek()
+	return parseList(p, regexp.MustCompile("^"+escape+string(marker)+"   "))
+}
 
-				if r1 == eof ||
-					regexp.MustCompile("^"+escape+string(marker)+"   ").Match(p.src[p.cur:]) {
-					break
-				}
-
-				// judge if item has mutiple lines.
-				if p.forsee(' ', ' ', ' ', ' ') {
-					p.src = append(p.src[:p.cur], p.src[p.cur+4:]...)
-					continue
-				}
-				if p.forsee('\t') {
-					p.src = append(p.src[:p.cur], p.src[p.cur+1:]...)
-					continue
-				}
-
-				// ? what's this for?
-				if r1 == '\n' {
-					if p.forsee('\n', ' ', ' ', ' ', ' ') {
-						p.next()
-					}
-					if p.forsee('\n', '\t') {
-						p.next()
-					}
-					break
-				}
-
-			}
-			r = p.next()
-		}
-		content := p.src[start:p.cur]
-		content = regexp.MustCompile("^"+escape+string(marker)+"   ").ReplaceAll(content, []byte{})
-		content = bytes.TrimRightFunc(content, func(r rune) bool {
-			if r == '\n' {
-				return true
-			}
-			return false
-		})
-
-		item := &Item{content: content}
-		list.items = append(list.items, item)
-		// if forsee Sprinf("%s ",marker),
-		// parse another list item,else emit list.
-		if !p.forsee(marker, ' ', ' ', ' ') {
-			p.emit(list)
-			return parseBegin
-		}
-		start = p.cur
-	}
+// parseOrderList parses order lists with embedded sub elements.
+func parseOrderList(p *blockParser) stateFn {
+	return parseList(p, regexp.MustCompile(`^\d+\.  `))
 }
 
 // parseCode parses code beginning with 4 sapces or 1 tab.
@@ -744,10 +695,9 @@ func parseCode(p *spanParser) spanStateFn {
 	return parseSpan
 }
 
-var escapeRunes = "\\'*_{}[]()#+-.!"
-
 // isEscapeRune returns true if r needs escaping.
 func isEscapeRune(r rune) bool {
+	var escapeRunes = "\\'*_{}[]()#+-.!"
 	for _, v := range escapeRunes {
 		if rune(v) == r {
 			return true
@@ -756,6 +706,7 @@ func isEscapeRune(r rune) bool {
 	return false
 }
 
+// find rune in the src,if not found,set positive infinite.
 func findRune(src []byte, r byte) int {
 	i := bytes.IndexByte(src, r)
 	if i == -1 {
