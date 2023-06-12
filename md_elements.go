@@ -3,7 +3,7 @@ package md2txt
 import (
 	"bytes"
 
-	"github.com/ggaaooppeenngg/md2txt/kind"
+	"github.com/zouhuigang/md2txt/kind"
 )
 
 // Block is the block element interface.
