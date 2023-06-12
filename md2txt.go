@@ -11,7 +11,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/ggaaooppeenngg/md2txt/kind"
+	"github.com/zouhuigang/md2txt/kind"
 )
 
 type EXT int
