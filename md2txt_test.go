@@ -3,7 +3,7 @@ package md2txt
 import (
 	"testing"
 
-	"github.com/ggaaooppeenngg/md2txt/kind"
+	"github.com/zouhuigang/md2txt/kind"
 )
 
 func TestHead(t *testing.T) {
